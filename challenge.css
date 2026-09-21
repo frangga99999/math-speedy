@@ -1,0 +1,78 @@
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  src: url('./assets/plus-jakarta-semibold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Nunito';
+  src: url('./assets/nunito-semibold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.figma-page { min-height:100dvh; display:flex; justify-content:center; align-items:flex-start; background:#111f29; }
+.figma-viewport { width:min(100%,430px); aspect-ratio:430 / 932; position:relative; --stage-scale:1; overflow:hidden; }
+.figma-stage {
+  position:absolute; width:430px; height:932px; left:0; top:0;
+  transform:scale(var(--stage-scale)); transform-origin:top left;
+  background: url('./assets/figma-challenge.png') 0 0 / 430px 932px no-repeat;
+  font-family:'Plus Jakarta Sans',sans-serif; font-weight:600; color:#fff;
+  isolation:isolate;
+}
+.figma-panel { position:absolute; left:0; width:430px; height:283px; display:block; pointer-events:none; }
+.figma-panel-back { top:-5px; }.figma-panel-front { top:-20px; }
+.figma-status { position:absolute; display:flex; align-items:center; justify-content:space-between; left:40px; top:22px; width:376px; padding-right:20px; height:14px; }
+.figma-timing { display:flex; gap:11px; align-items:center; }
+#timer { width:31px; height:14px; font:600 11px/14px 'Plus Jakarta Sans'; font-variant-numeric:tabular-nums; }
+.figma-timer-track { width:89px; height:14px; background:#434343; border-radius:20px; position:relative; overflow:hidden; }
+.figma-timer-track i { position:absolute; top:2px; left:3px; width:83px; height:10px; border-radius:20px; background:#295a36; }
+.figma-timer-track b { position:absolute; top:2px; left:3px; width:83px; height:10px; border-radius:20px; background:#1abf46; transform-origin:left center; transition:transform .25s linear; }
+.figma-lives { display:flex; gap:4px; align-items:center; }
+.figma-lives i { width:13px; height:13px; background:#4c3738; border-radius:20px; transition:background .25s; }
+.figma-lives i.alive { background:#de1215; }
+.figma-question { position:absolute; left:67px; top:98px; width:296px; display:flex; flex-direction:column; gap:24px; }
+.figma-question p { margin:0; width:296px; height:30px; font:600 24px/30px 'Plus Jakarta Sans'; white-space:nowrap; letter-spacing:0; }
+.figma-question #equation { display:block; width:296px; height:43px; min-height:0; margin:0; font:600 34px/43px 'Plus Jakarta Sans'; text-align:center; letter-spacing:0; color:#00ad3a; }
+.figma-answer { position:absolute; left:40px; top:210px; width:350px; text-align:center; font:600 24px/32px 'Plus Jakarta Sans'; color:#fff; }
+.figma-keypad { position:absolute; top:318px; left:0; width:430px; padding:0 40px; display:grid; grid-template-columns:repeat(3,100px); gap:30px 25px; }
+/* Figma's GLASS effect is preserved in its exported artwork, including light refraction. */
+.figma-key {
+  width:100px; height:90px; border:0; padding:0; border-radius:58px;
+  background:url('./assets/figma-challenge.png') var(--sprite-x) var(--sprite-y) / 430px 932px no-repeat;
+  font:600 32px/44px 'Nunito'; color:#fff;
+}
+.figma-stage button { cursor:pointer; transition:filter .16s,opacity .16s; }
+.figma-stage button:active:not(:disabled) { transform:none; filter:brightness(1.12); }
+.figma-stage button:disabled { cursor:default; }
+.figma-stage button:focus-visible { outline:3px solid #fff; outline-offset:4px; }
+.figma-actions { position:absolute; top:812px; left:40px; width:343px; height:74px; display:flex; align-items:flex-start; gap:16px; }
+.figma-giveup, .figma-done { padding:0; border:0; border-radius:50px; color:#fff; font:600 22px/28px 'Plus Jakarta Sans'; }
+.figma-giveup { width:143px; height:72px; background:url('./assets/figma-challenge.png') -40px -812px / 430px 932px no-repeat; }
+.figma-done { width:184px; height:74px; background:url('./assets/figma-challenge.png') -199px -812px / 430px 932px no-repeat; }
+.figma-stage .success-burst { top:194px; }
+.figma-stage.is-correct #answer { color:#63f395; }.figma-stage.is-wrong #answer { color:#ffaeb0; }
+@media(hover:hover) { .figma-stage button:hover:not(:disabled) { filter:brightness(1.07); } }
+
+.account-button { display:flex; align-items:center; gap:6px; border:1px solid #bedcb229; background:#c2eaa007; color:#c7dcbf; font-size:11px; padding:8px 10px; min-height:44px; border-radius:12px; }
+.engine-options { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:18px; }
+.engine-options button { display:flex; align-items:center; justify-content:center; gap:6px; min-height:44px; padding:7px; border-radius:10px; border:1px solid #ffffff14; background:#12263255; color:#b5c7ce; font-size:11px; }
+.engine-options button span { font-size:8px; color:#a2b7aa; }
+.engine-options button[aria-pressed="true"] { border-color:#badba975; background:#c1e5aa15; color:#d9edcf; }
+.digit-options { margin-top:18px; }
+.digit-options-label { display:block; font-size:8px; letter-spacing:1px; color:#b7c8d2; margin-bottom:8px; text-transform:uppercase; }
+.digit-options-row { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; }
+.digit-options-row button { min-height:40px; padding:5px; border-radius:10px; border:1px solid #ffffff14; background:#12263255; color:#b5c7ce; font-size:12px; }
+.digit-options-row button[aria-pressed="true"] { border-color:#badba975; background:#c1e5aa15; color:#d9edcf; }
+.settings-dialog { border:1px solid #4a6267; background:#1c303c; color:#f3f5ef; border-radius:24px; width:min(90vw,390px); padding:32px 25px 22px; box-shadow:0 25px 90px #0008; }
+.settings-dialog::backdrop { background:#06121bc4; backdrop-filter:blur(5px); }
+.settings-dialog h2 { font:500 27px/1.15 'Outfit'; letter-spacing:-.7px; margin:14px 0; }
+.settings-dialog p { font-size:14px; line-height:1.6; color:#becbd0; margin:0 0 20px; }
+.settings-dialog small { display:block; font-size:11px; color:#a2b5bd; margin-bottom:24px; }
+.settings-dialog .primary-button { justify-content:center; margin-top:22px; text-align:center; }
+.settings-dialog .dialog-close { position:absolute; top:10px; right:10px; width:44px; height:44px; display:grid; place-items:center; border:0; background:none; color:#c8d6d8; border-radius:12px; }
+.settings-dialog .text-button { margin-top:14px; }
+.toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:100; width:max-content; max-width:calc(100vw - 36px); border:1px solid #bcd5bb55; border-radius:14px; background:#1e3542; color:#e3eee2; padding:13px 18px; box-shadow:0 8px 30px #07121b70; font:400 12px/1.5 'DM Sans'; text-align:center; }
+@media(prefers-reduced-motion:reduce) { .figma-stage *, .figma-timer-track b { transition:none!important; } }

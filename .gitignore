@@ -1,0 +1,7 @@
+.env
+.vps-ai-key
+node_modules/
+
+.private-access
+.orig-backup/
+.DS_Store
