@@ -25,6 +25,7 @@ test('owner access, protected assets, VPS generation, validation and logout',asy
     assert.equal((await post('/api/challenge',{operation:'tambah',difficulty:'mudah'})).status,401);
     assert.equal((await post('/api/access',{key:'wrong'})).status,401);
     assert.equal((await post('/api/access',{key:accessKey},'','https://evil.example')).status,403);
+    assert.equal((await post('/api/access',{key:accessKey},'',base.replace(/^http/,'https'))).status,200);
     const login=await post('/api/access',{key:accessKey}); assert.equal(login.status,200);
     const header=login.headers.get('set-cookie');assert.match(header,/HttpOnly/);assert.match(header,/SameSite=Strict/);const cookie=header.split(';')[0];
     for(const file of ['home.css','progress.js','assets/figma-panel-front.svg','assets/figma-challenge.png']) assert.equal((await fetch(base+'/'+file,{headers:{Cookie:cookie}})).status,200,file);

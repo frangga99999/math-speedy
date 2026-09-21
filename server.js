@@ -85,7 +85,13 @@ export function createServer({accessKey = defaultOwnerKey, ai = {baseURL:process
       // Reject unknown hosts and DNS rebinding; allowed hosts come from ALLOWED_HOSTS.
       if (!allowedHosts.has(hostname)) return reply(res,403,{error:'Akses hanya melalui host yang diizinkan.'});
       const url = new URL(req.url, `http://${host}`);
-      if (req.method === 'POST' && req.headers.origin && req.headers.origin !== `http://${host}`) return reply(res,403,{error:'Origin tidak diizinkan.'});
+      // Bandingkan host Origin dengan host permintaan (bukan skema), supaya POST
+      // tetap lolos di belakang reverse proxy HTTPS (Caddy) maupun HTTP langsung.
+      if (req.method === 'POST' && req.headers.origin) {
+        let originHost = '';
+        try { originHost = new URL(req.headers.origin).host; } catch { return reply(res,403,{error:'Origin tidak diizinkan.'}); }
+        if (originHost !== host) return reply(res,403,{error:'Origin tidak diizinkan.'});
+      }
       for (const [key, expiry] of sessions) if (expiry <= Date.now()) sessions.delete(key);
       const cookie = req.headers.cookie?.split(';').map(x=>x.trim()).find(x=>x.startsWith('math_owner='))?.slice(11);
       const authorized = sessions.has(cookie);
