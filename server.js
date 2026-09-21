@@ -73,7 +73,7 @@ export function createServer({accessKey = defaultOwnerKey, ai = {baseURL:process
   const sessions = new Map();
   let failures = 0, failureWindow = 0, aiBusy = false, aiVerified = false;
   const configured = Boolean(ai.baseURL && ai.model);
-  return http.createServer(async (req, res) => {
+  const server = http.createServer(async (req, res) => {
     res.setHeader('X-Content-Type-Options','nosniff');
     res.setHeader('Referrer-Policy','no-referrer');
     res.setHeader('X-Frame-Options','DENY');
@@ -153,6 +153,15 @@ export function createServer({accessKey = defaultOwnerKey, ai = {baseURL:process
       } catch { reply(res,404,{error:'Halaman tidak ditemukan.'}); }
     } catch { reply(res,500,{error:'Permintaan belum dapat diproses.'}); }
   });
+  // Sentuh model sekali saat start supaya /api/ai/status langsung melaporkan
+  // "terhubung". Tanpa ini status baru berubah setelah ada satu permintaan AI
+  // yang berhasil, sehingga tombol Asisten Belajar terlihat belum tersambung.
+  if (configured) {
+    generateAI({operation:'tambah',difficulty:'mudah'}, ai)
+      .then(() => { aiVerified = true; })
+      .catch(() => {});
+  }
+  return server;
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   createServer().listen(port,hostBind,()=>console.log(`Math Speedy privat: http://localhost:${port} — kunci akses di .private-access`));
