@@ -60,3 +60,7 @@ Pilih salah satu operasi lalu **Tabel penjumlahan/pengurangan/perkalian/pembagia
 - Matematika AI: lima materi berurutan (fungsi/bobot, vektor, rata-rata, peluang, gradien). Setiap materi memiliki penjelasan, rumus, contoh, pilihan level, dan sepuluh soal lokal. Sesi tuntas dengan minimal tujuh jawaban benar menandai materi selesai; progres materi disimpan bersama riwayat sesi. Materi dapat diulang atau dijelajahi langsung. Kursus ini tidak memerlukan model VPS.
 - Dashboard: bola progres kaca, orbit, pantulan, dan simbol mengambang berjalan berulang. Tombol jeda mengontrol animasi; reduced motion mematikannya.
 - 24 tes otomatis; uji browser menyelesaikan materi Fungsi & bobot hingga status 1/5 tuntas.
+
+## Input challenge yang menyesuaikan konteks
+
+Challenge aritmetika dasar tetap memakai keypad kaca karena sesi tersebut berfokus pada hitung cepat. Latihan IQ dan Matematika AI memakai lembar soal yang lebih luas dengan kolom jawaban native, sehingga angka panjang dapat diketik melalui keyboard fisik atau keypad numerik ponsel. Input menerima sampai 12 digit, membersihkan karakter selain angka, mendukung Enter untuk memeriksa, dan menyediakan tombol hapus, petunjuk, menyerah, serta keluar. Warna dan judul lembar berubah menurut konteks IQ atau materi AI. Total pengujian otomatis saat ini 26.
