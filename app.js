@@ -13,6 +13,45 @@ const operations = {
   bagi: { symbol: '÷', label: 'Pembagian', short: 'Bagi', example: '8 ÷ 4', answer: '2', color: 'lilac' },
 };
 const levels = { mudah: { label: 'Mudah', hint: 'Angka 0–10' }, sedang: { label: 'Sedang', hint: 'Angka 0–50' }, sulit: { label: 'Sulit', hint: 'Angka 0–100' } };
+const GUIDE = [
+  { id: 'tambah', symbol: '+', title: 'Penjumlahan', color: 'mint', tagline: 'Menggabungkan dua kelompok',
+    what: 'Penjumlahan menggabungkan dua bilangan menjadi satu total yang lebih besar.',
+    analogy: 'Seperti menuang air dari dua gelas ke satu teko. Jumlah airnya bertambah.',
+    steps: ['Mulai dari angka pertama.', 'Hitung maju sebanyak angka kedua.', 'Angka terakhir adalah jawaban.'],
+    example: '7 + 5 → mulai dari 7, lalu hitung maju 5: 8, 9, 10, 11, 12. Jawabannya 12.',
+    tip: 'Untuk angka besar, jumlahkan puluhan dulu, baru satuannya.',
+    note: 'Kamu bisa memilih jumlah digit (1–5) di pengaturan penjumlahan.' },
+  { id: 'kurang', symbol: '−', title: 'Pengurangan', color: 'peach', tagline: 'Mengambil sebagian',
+    what: 'Pengurangan mengambil sebagian dari suatu bilangan. Yang tersisa makin sedikit.',
+    analogy: 'Seperti memakan kue dari toples. Isinya berkurang.',
+    steps: ['Mulai dari angka terbesar.', 'Hitung mundur sebanyak angka kedua.', 'Angka terakhir adalah sisanya.'],
+    example: '9 − 4 → mulai dari 9, hitung mundur 4: 8, 7, 6, 5. Jawabannya 5.',
+    tip: 'Pengurangan adalah kebalikan dari penjumlahan.' },
+  { id: 'kali', symbol: '×', title: 'Perkalian', color: 'blue', tagline: 'Penjumlahan berulang',
+    what: 'Perkalian menjumlahkan angka yang sama secara berulang.',
+    analogy: 'Seperti kotak telur: 6 baris, tiap baris 2 telur, jadi 12 telur.',
+    steps: ['Ambil angka pertama.', 'Jumlahkan angka itu sebanyak angka kedua kali.', 'Totalnya adalah jawaban.'],
+    example: '4 × 3 = 4 + 4 + 4 = 12.',
+    tip: 'Hafalkan tabel perkalian kecil (1–10), ini jadi jauh lebih cepat.' },
+  { id: 'bagi', symbol: '÷', title: 'Pembagian', color: 'lilac', tagline: 'Membagi rata',
+    what: 'Pembagian membagi suatu bilangan menjadi beberapa bagian yang sama besar.',
+    analogy: 'Seperti membagi 12 kue ke 3 orang. Tiap orang dapat 4 kue.',
+    steps: ['Ambil bilangan yang dibagi.', 'Bagikan rata ke jumlah kelompok.', 'Tiap kelompok adalah jawaban.'],
+    example: '12 ÷ 3 = 4, karena 4 × 3 = 12.',
+    tip: 'Pembagian adalah kebalikan dari perkalian.' },
+  { id: 'iq', symbol: '⋯', title: 'Latihan IQ', color: 'mint', tagline: 'Menemukan pola',
+    what: 'Latihan IQ meminta kamu menemukan aturan di balik deretan angka.',
+    analogy: 'Seperti menebak nada berikutnya dalam sebuah lagu.',
+    steps: ['Lihat selisih antar angka.', 'Temukan pola yang berulang.', 'Terapkan pola ke angka berikutnya.'],
+    example: '2, 4, 6, 8, ? → setiap angka naik 2, jadi jawabannya 10.',
+    tip: 'Mulai dari selisih antar angka. Pola paling umum: tambah atau kali.' },
+  { id: 'aimath', symbol: '∇', title: 'Matematika AI', color: 'lilac', tagline: 'Bahasa di balik AI',
+    what: 'Matematika AI mengajarkan konsep sederhana yang dipakai mesin untuk belajar.',
+    analogy: 'Seperti resep masakan: input adalah bahan, model adalah cara mengolahnya.',
+    steps: ['Baca penjelasan materi.', 'Lihat rumus dan contohnya.', 'Kerjakan 10 soal untuk menguasainya.'],
+    example: 'Fungsi y = w × x + b mengubah input x menjadi prediksi y.',
+    tip: 'Buka menu Matematika AI untuk materi lengkap mulai dari nol.' }
+];
 const state = { screen: 'home', operation: 'kali', difficulty: 'mudah', question: null, previous: '', index: 0, score: 0, lives: 5, input: '', loading: false, feedback: '', error: '', answered: 0, engine: 'default', digits: null, history: [], remaining: 80 };
 let requestId = 0;
 let requestController;
@@ -36,6 +75,7 @@ const paths = {
   heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/>',
   bolt: '<path d="m14 2-9 12h6l-1 8 9-12h-6l1-8Z"/>',
   grid: '<rect x="3" y="3" width="6" height="6" rx="1.5"/><rect x="15" y="3" width="6" height="6" rx="1.5"/><rect x="3" y="15" width="6" height="6" rx="1.5"/><rect x="15" y="15" width="6" height="6" rx="1.5"/>',
+  book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
 };
 const svg = (name, size = 20) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || ''}</svg>`;
 const brand = () => `<a href="#home" class="brand" aria-label="Math Speedy, beranda"><span class="brand-mark">${svg('bolt', 23)}</span><span>math<span class="brand-light">speedy</span><i></i></span></a>`;
@@ -99,6 +139,7 @@ function renderHome() {
       <div class="home-extras">
         <section class="weekly-card" aria-labelledby="weekly-title"><div class="section-heading"><h2 id="weekly-title">Ritme minggu ini</h2><span>${progress.days.reduce((n, d) => n + d.answered, 0)} soal</span></div><div class="weekly-chart" role="img" aria-label="${progress.days.map(day => `${day.label}: ${day.answered} soal`).join(', ')}">${progress.days.map((day, i) => `<div class="day-column ${i === 6 ? 'today' : ''}"><span class="day-count">${day.answered || '–'}</span><div class="day-track"><i style="--bar-height:${Math.max(day.answered ? 8 : 0, day.answered / maxDay * 100)}%"></i></div><span>${day.label}</span></div>`).join('')}</div></section>
         <button class="ai-feature" id="ai-practice"><span class="ai-feature-icon">${svg('spark', 25)}</span><span><strong>Latihan dengan AI</strong><small>${aiConnected ? 'VPS terhubung · soal lebih variatif' : aiConfigured ? 'Model VPS · siap diuji' : 'Siapkan model VPS pribadi'}</small></span>${svg('arrow', 20)}</button>
+        <button class="ai-feature" id="show-guide"><span class="ai-feature-icon">${svg('book', 25)}</span><span><strong>Panduan lengkap</strong><small>Penjelasan & analogi sederhana</small></span>${svg('arrow', 20)}</button>
         <section class="recent-section" aria-labelledby="recent-title"><div class="section-heading"><h2 id="recent-title">Latihan terakhir</h2><span>Di perangkat ini</span></div>${progress.recent.length ? `<div class="recent-list">${progress.recent.map(session => `<button class="recent-item" data-practice="${session.operation}" data-level="${session.difficulty}" aria-label="Ulangi ${operations[session.operation].label}, ${levels[session.difficulty].label}"><span class="recent-symbol">${operations[session.operation].symbol}</span><span class="recent-name"><strong>${operations[session.operation].label}</strong><small>${levels[session.difficulty].label} · ${new Intl.DateTimeFormat('id-ID', {day:'numeric', month:'short'}).format(new Date(session.at))} · ${session.reason === 'completed' ? 'Tuntas' : 'Belum tuntas'}</small></span><span class="recent-score">${session.score}<small>/${session.answered}</small></span>${svg('refresh', 16)}</button>`).join('')}</div>` : `<div class="history-empty">${svg('grid', 25)}<div><strong>Belum ada latihan</strong><p>Hasil latihanmu akan muncul di sini.</p></div></div>`}</section>
         <footer class="dashboard-footer"><span class="footer-dot"></span> Progres tersimpan otomatis di perangkat ini</footer>
       </div>
@@ -135,7 +176,7 @@ function showSetup(operation = state.operation) {
   const dialog = openDialog(`<button class="dialog-close" data-close aria-label="Tutup pengaturan">${svg('close')}</button><span class="eyebrow">10 SOAL · 80 DETIK · 5 NYAWA</span><h2>${operation==='iq'?IQ_TOPICS[state.iqTopic]:operation==='aimath'?AI_LESSONS.find(x=>x.id===state.aiTopic).title:operations[operation].label}</h2>
     <div class="difficulty-tabs" role="group" aria-label="Pilih tingkat kesulitan" style="--selected:${Object.keys(levels).indexOf(state.difficulty)}"><span class="difficulty-indicator" aria-hidden="true"></span>${Object.entries(levels).map(([key, level], i) => `<button class="difficulty" data-difficulty="${key}">${bars(i + 1)}${level.label}</button>`).join('')}</div>
     <p class="setup-level-hint" id="level-hint">${levels[state.difficulty].hint}</p>${operation === 'tambah' ? digitOptionsMarkup() : ''}${operation==='iq'?'<button class="text-button" id="iq-back">Ganti jenis pola</button>':''}
-    <div class="engine-options" ${['iq','aimath'].includes(operation) ? 'hidden' : ''} role="group" aria-label="Sumber soal"><button data-engine="default">Bawaan <span>Gratis</span></button><button data-engine="ai">${svg('spark', 13)} AI ${aiConfigured ? '<span>VPS</span>' : '<span>Atur VPS</span>'}</button></div><button class="reference-button" id="show-reference">${svg('grid',16)} ${operation==='aimath'?'Baca materi':operation === 'iq' ? 'Panduan pola angka' : 'Tabel ' + operations[operation].label.toLowerCase()}</button>${operation === 'iq' ? '<p class="iq-note">Latihan logika angka · bukan pengukuran skor IQ.</p>' : ''}<button class="primary-button" id="start"><span>Mulai latihan</span>${svg('arrow', 20)}</button>`);
+    <div class="engine-options" ${['iq','aimath'].includes(operation) ? 'hidden' : ''} role="group" aria-label="Sumber soal"><button data-engine="default">Bawaan <span>Gratis</span></button><button data-engine="ai">${svg('spark', 13)} AI ${aiConfigured ? '<span>VPS</span>' : '<span>Atur VPS</span>'}</button></div><button class="reference-button" id="show-reference">${svg('grid',16)} ${operation==='aimath'?'Baca materi':operation === 'iq' ? 'Panduan pola angka' : 'Tabel ' + operations[operation].label.toLowerCase()}</button><button class="text-button" id="show-guide">${svg('book',16)} Panduan lengkap</button>${operation === 'iq' ? '<p class="iq-note">Latihan logika angka · bukan pengukuran skor IQ.</p>' : ''}<button class="primary-button" id="start"><span>Mulai latihan</span>${svg('arrow', 20)}</button>`);
   dialog.classList.add('practice-dialog');
   updateHomeSelection();
 }
@@ -508,12 +549,50 @@ function celebrateCompletion() {
   }
 }
 
+function renderGuide() {
+  app.innerHTML = `
+    <section class="guide-screen" aria-label="Panduan lengkap">
+      <header class="result-header"><a href="#home" class="brand wordmark" aria-label="Math Speedy, beranda">SpeedyMath</a><button class="result-close" id="guide-close" aria-label="Kembali ke beranda">${svg('close')}</button></header>
+      <div class="guide-content">
+        <span class="eyebrow">PANDUAN LENGKAP</span>
+        <h1>Cara kerja setiap latihan.</h1>
+        <p>Penjelasan singkat dengan analogi sehari-hari. Baca dulu, lalu mulai dari yang paling nyaman buatmu.</p>
+        <nav class="guide-toc" aria-label="Daftar isi">${GUIDE.map(g => `<a href="#guide-${g.id}"><span class="guide-toc-symbol">${g.symbol}</span>${g.title}</a>`).join('')}</nav>
+        ${GUIDE.map(g => `
+          <article class="guide-card" id="guide-${g.id}">
+            <div class="guide-card-head"><span class="guide-symbol">${g.symbol}</span><div><h2>${g.title}</h2><small>${g.tagline}</small></div></div>
+            <p class="guide-what">${g.what}</p>
+            <div class="guide-analogy"><span>ANALOGI</span>${g.analogy}</div>
+            <ol class="guide-steps">${g.steps.map(s => `<li>${s}</li>`).join('')}</ol>
+            <div class="guide-example"><span>CONTOH</span>${g.example}</div>
+            <p class="guide-tip">${g.tip}</p>
+            ${g.note ? `<p class="guide-note">${g.note}</p>` : ''}
+          </article>
+        `).join('')}
+        <button class="primary-button" id="guide-start">Mulai berlatih ${svg('arrow', 18)}</button>
+      </div>
+    </section>`;
+}
+
+function showGuide() {
+  document.querySelectorAll('dialog[open]').forEach(d => d.close());
+  clearTimeout(nextQuestionTimer);
+  clearInterval(sessionClock);
+  stageObserver?.disconnect();
+  requestController?.abort();
+  requestId++;
+  state.screen = 'guide';
+  renderGuide();
+  enterScreen();
+}
+
 document.addEventListener('click', event => {
   const button = event.target.closest('button, a');
   if (!button || button.disabled) return;
-  if (button.matches('.brand') || button.id === 'home' || button.id === 'result-home') { event.preventDefault(); goHome(); }
+  if (button.matches('.brand') || button.id === 'home' || button.id === 'result-home' || button.id === 'guide-close' || button.id === 'guide-start') { event.preventDefault(); goHome(); }
   else if (button.id === 'exit-challenge') confirmExit('home');
   else if (button.id === 'account') showAccount();
+  else if (button.id === 'show-guide') showGuide();
   else if (button.id === 'show-reference') state.operation==='aimath'?showLesson(state.aiTopic):showReference();
   else if (button.id==='iq-back') showIQMenu();
   else if (button.dataset.iqTopic) {state.iqTopic=button.dataset.iqTopic;showSetup('iq');}
