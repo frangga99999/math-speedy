@@ -1,0 +1,16 @@
+[Unit]
+Description=Math Speedy private practice app (default + VPS Combo Gue AI)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/ubuntu/math-speedy
+ExecStart=/usr/bin/node server.js
+Environment=NODE_ENV=production
+Restart=always
+RestartSec=3
+MemoryMax=256M
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,17 @@
+[Unit]
+Description=Caddy reverse proxy + TLS (DuckDNS DNS-01) untuk Math Speedy
+Documentation=https://caddyserver.com/docs/
+After=network-online.target mathspeedy.service
+Wants=network-online.target
+
+[Service]
+Type=notify
+EnvironmentFile=%h/.config/caddy/caddy.env
+ExecStart=/usr/local/bin/caddy run --config %h/.config/caddy/Caddyfile
+ExecReload=/usr/local/bin/caddy reload --config %h/.config/caddy/Caddyfile
+Restart=always
+RestartSec=3
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=default.target

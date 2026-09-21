@@ -1,0 +1,14 @@
+# Math Speedy — HTTPS asli via DNS-01 DuckDNS (tanpa perlu buka port 80/443).
+# Aplikasi Node tetap di 127.0.0.1:8791; Caddy yang menghadap publik di :8788.
+# Tanpa blok "email": Let's Encrypt mendaftar tanpa kontak (email contoh ditolak).
+{
+	auto_https disable_redirects
+}
+
+mathspeedy.duckdns.org:8788, mathspeedy.duckdns.org:443 {
+	tls {
+		dns duckdns {env.DUCKDNS_TOKEN}
+	}
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8791
+}
