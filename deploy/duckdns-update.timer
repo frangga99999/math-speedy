@@ -1,0 +1,11 @@
+[Unit]
+Description=Jalankan duckdns-update harian untuk mathspeedy.duckdns.org
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=1d
+Persistent=true
+Unit=duckdns-update.service
+
+[Install]
+WantedBy=timers.target

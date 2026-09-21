@@ -1,0 +1,8 @@
+[Unit]
+Description=Perbarui record A DuckDNS mathspeedy (cegah domain dihapus karena tidak aktif)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/duckdns-update.sh

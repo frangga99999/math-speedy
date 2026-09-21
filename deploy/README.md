@@ -26,7 +26,13 @@ pengunjung --HTTPS:8788--> Caddy (TLS, Let's Encrypt DNS-01)
 | `mathspeedy.service` | `~/.config/systemd/user/mathspeedy.service` |
 | `caddy.service` | `~/.config/systemd/user/caddy.service` |
 | `Caddyfile` | `~/.config/caddy/Caddyfile` |
+| `duckdns-update.sh` | `~/.local/bin/duckdns-update.sh` |
+| `duckdns-update.service` + `.timer` | `~/.config/systemd/user/` |
 | `skill/math-speedy-vps/` | `~/.hermes/skills/devops/math-speedy-vps/` |
+
+`duckdns-update.timer` memperbarui record A DuckDNS **setiap hari**. DuckDNS
+menghapus domain yang tidak diperbarui (sekitar 30 hari), jadi timer ini yang
+menjaga `mathspeedy.duckdns.org` — dan karenanya HTTPS — tetap hidup.
 
 Rahasia **tidak** ada di repo ini:
 
