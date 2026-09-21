@@ -1,5 +1,6 @@
 .env
 .vps-ai-key
+.telegram-control.env
 node_modules/
 
 .private-access
