@@ -211,6 +211,10 @@ function updateHomeSelection() {
 }
 
 function renderChallenge() {
+  if (['iq', 'aimath'].includes(state.operation)) {
+    renderWrittenChallenge();
+    return;
+  }
   app.innerHTML = `
     <section class="figma-page" aria-label="Latihan hitung">
       <div class="figma-viewport">
@@ -245,6 +249,55 @@ function renderChallenge() {
   stageObserver.observe(viewport);
 }
 
+function renderWrittenChallenge() {
+  const isAI = state.operation === 'aimath';
+  const contextLabel = isAI
+    ? AI_LESSONS.find(lesson => lesson.id === state.aiTopic)?.title || 'Matematika AI'
+    : IQ_TOPICS[state.iqTopic] || 'Latihan IQ';
+  app.innerHTML = `
+    <section class="written-challenge ${isAI ? 'written-ai' : 'written-iq'}" aria-label="${isAI ? 'Tantangan matematika AI' : 'Latihan pola angka'}">
+      <header class="written-header">
+        <button class="written-icon-button" id="exit-challenge" aria-label="Tutup latihan">${svg('close', 20)}</button>
+        <div class="written-progress-copy"><span id="written-step">Soal 1 dari ${TOTAL}</span><strong>${escapeHtml(contextLabel)}</strong></div>
+        <div class="written-lives" aria-label="5 nyawa tersisa">${Array.from({length:5}, () => '<i class="alive"></i>').join('')}</div>
+      </header>
+      <div class="written-timer"><span id="timer" aria-label="Waktu tersisa">01:20</span><div class="written-timer-track figma-timer-track" role="progressbar" aria-label="Sisa waktu" aria-valuemin="0" aria-valuemax="80" aria-valuenow="80"><i></i><b></b></div></div>
+      <main class="written-body">
+        <section class="written-question-card">
+          <span class="written-kicker">${isAI ? 'TERAPKAN KONSEPNYA' : 'TEMUKAN POLANYA'}</span>
+          <p id="question-prompt">Menyiapkan soal…</p>
+          <h1 id="equation" aria-label="Soal">…</h1>
+          <div class="question-decoration" aria-hidden="true"><i></i><i></i><i></i></div>
+        </section>
+        <form class="written-answer-card" id="written-answer-form">
+          <label for="written-answer">Jawabanmu</label>
+          <div class="written-input-row">
+            <input id="written-answer" name="answer" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="off" enterkeyhint="done" placeholder="Ketik jawaban" aria-describedby="written-answer-help">
+            <button type="button" class="written-clear" id="clear-written" aria-label="Hapus jawaban">${svg('close', 18)}</button>
+          </div>
+          <small id="written-answer-help">Kamu bisa mengetik jawaban panjang dengan keyboard.</small>
+          <div class="written-secondary-actions"><button type="button" id="written-help">${svg('spark', 16)} Petunjuk</button><button type="button" id="giveup">Menyerah</button></div>
+          <button type="submit" class="written-submit" id="done"><span>Periksa jawaban</span>${svg('arrow', 20)}</button>
+        </form>
+      </main>
+      <div class="sr-only" id="feedback" role="status" aria-live="polite"></div>
+      <div class="success-burst" aria-hidden="true"></div>
+    </section>`;
+  stageObserver?.disconnect();
+  const input = app.querySelector('#written-answer');
+  input.addEventListener('input', () => {
+    const clean = input.value.replace(/\D/g, '').slice(0, 12);
+    if (input.value !== clean) input.value = clean;
+    state.input = clean.replace(/^0+(?=\d)/, '');
+    if (input.value !== state.input) input.value = state.input;
+    updateKeypad();
+  });
+  app.querySelector('#written-answer-form').addEventListener('submit', event => {
+    event.preventDefault();
+    press('enter');
+  });
+}
+
 function updateQuestion() {
   const q = state.question;
   const equation = app.querySelector('#equation');
@@ -252,24 +305,35 @@ function updateQuestion() {
   equation.classList.toggle('iq-equation', ['iq','aimath'].includes(state.operation));
   equation.setAttribute('aria-label', q ? q.operation === 'aimath' ? `${q.prompt} ${q.display}` : q.operation === 'iq' ? `Lanjutkan pola: ${q.sequence.join(', ')}, tanda tanya` : `${q.a} ${operations[q.operation].label} ${q.b}` : 'Menyiapkan soal');
   app.querySelector('#question-prompt').textContent = state.loading ? 'Menyiapkan soal…' : state.operation === 'aimath' ? (q?.prompt || 'Matematika AI') : state.operation === 'iq' ? 'Angka berikutnya?' : 'Berapa hasilnya?';
-  app.querySelector('.figma-stage').classList.remove('is-correct', 'is-wrong');
+  app.querySelector('.figma-stage, .written-challenge')?.classList.remove('is-correct', 'is-wrong');
   app.querySelector('#feedback').textContent = `Soal ${state.index + 1} dari ${TOTAL}. ${state.score} benar.`;
+  const writtenStep = app.querySelector('#written-step');
+  if (writtenStep) writtenStep.textContent = `Soal ${state.index + 1} dari ${TOTAL}`;
   updateAnswer();
   updateKeypad();
-  if (q) animate(equation, [{opacity:0,transform:'translateY(5px)'},{opacity:1,transform:'translateY(0)'}]);
+  if (q) {
+    animate(equation, [{opacity:0,transform:'translateY(5px)'},{opacity:1,transform:'translateY(0)'}]);
+    if (app.querySelector('#written-answer') && !motionPreference.matches) setTimeout(() => app.querySelector('#written-answer')?.focus({preventScroll:true}), 220);
+  }
 }
 
 function updateKeypad() {
   app.querySelectorAll('[data-key]').forEach(el => { el.disabled = state.loading || Boolean(state.feedback) || !state.question; });
-  app.querySelector('#done').disabled = state.loading || Boolean(state.feedback) || !state.question;
+  const done = app.querySelector('#done');
+  if (done) done.disabled = state.loading || Boolean(state.feedback) || !state.question || (Boolean(app.querySelector('#written-answer')) && !state.input);
+  const input = app.querySelector('#written-answer');
+  if (input) input.disabled = state.loading || Boolean(state.feedback) || !state.question;
 }
 
 function updateAnswer() {
   const answer = app.querySelector('#answer');
-  if (!answer) return;
-  answer.hidden = !state.input;
-  answer.textContent = state.input ? `= ${state.input}` : '';
-  animate(answer, [{opacity:.5,transform:'translateY(3px)'},{opacity:1,transform:'translateY(0)'}], {duration:150});
+  if (answer) {
+    answer.hidden = !state.input;
+    answer.textContent = state.input ? `= ${state.input}` : '';
+    animate(answer, [{opacity:.5,transform:'translateY(3px)'},{opacity:1,transform:'translateY(0)'}], {duration:150});
+  }
+  const writtenInput = app.querySelector('#written-answer');
+  if (writtenInput && writtenInput.value !== state.input) writtenInput.value = state.input;
 }
 
 function startClock() {
@@ -358,14 +422,14 @@ function confirmExit(destination = 'result') {
 }
 
 function showFeedback(correct) {
-  app.querySelector('.figma-stage').classList.add(correct ? 'is-correct' : 'is-wrong');
+  app.querySelector('.figma-stage, .written-challenge')?.classList.add(correct ? 'is-correct' : 'is-wrong');
   app.querySelector('#question-prompt').textContent = correct ? 'Jawaban benar!' : `Jawabannya ${calculate(state.question)}`;
   app.querySelector('#feedback').textContent = correct ? 'Jawaban benar.' : `Jawaban salah. Jawaban yang benar ${calculate(state.question)}.`;
-  const lives = app.querySelector('.figma-lives');
+  const lives = app.querySelector('.figma-lives, .written-lives');
   lives.setAttribute('aria-label', `${state.lives} nyawa tersisa`);
   if (!correct) {
     lives.children[state.lives].classList.remove('alive');
-    animate(app.querySelector('#answer'), [0,-6,6,-4,0].map(x => ({transform:`translateX(${x}px)`})), {duration:300});
+    animate(app.querySelector('#answer, #written-answer'), [0,-6,6,-4,0].map(x => ({transform:`translateX(${x}px)`})), {duration:300});
   } else burst(app.querySelector('.success-burst'));
   updateKeypad();
 }
@@ -615,6 +679,13 @@ document.addEventListener('click', event => {
     updateHomeSelection();
     animate(document.querySelector('#level-hint'), [{opacity:0, transform:'translateY(4px)'}, {opacity:1, transform:'translateY(0)'}]);
   } else if (button.id === 'giveup') confirmExit();
+  else if (button.id === 'written-help') showHelp();
+  else if (button.id === 'clear-written') {
+    state.input = '';
+    updateAnswer();
+    updateKeypad();
+    app.querySelector('#written-answer')?.focus();
+  }
   else if (button.id === 'done') press('enter');
   else if (button.dataset.difficulty) {
     state.difficulty = button.dataset.difficulty;
@@ -639,6 +710,7 @@ app.addEventListener('pointerdown', event => {
 document.addEventListener('keydown', event => {
   if (state.screen !== 'challenge' || document.querySelector('dialog[open]') || event.altKey || event.ctrlKey || event.metaKey || event.repeat) return;
   if (event.key === 'Escape') { event.preventDefault(); confirmExit('home'); return; }
+  if (event.target.matches('#written-answer')) return;
   if (event.key === 'Enter' && event.target.closest('button:not([data-key]):not(#done), a')) return;
   const key = /^\d$/.test(event.key) ? event.key : event.key === 'Backspace' ? 'backspace' : event.key === 'Enter' ? 'enter' : null;
   if (key) { event.preventDefault(); press(key); }
