@@ -80,6 +80,10 @@ Rahasia **tidak** ada di repo ini:
   **tanpa** blok `email` di Caddyfile.
 - Cek Origin di `server.js` dulu membandingkan `http://${host}` sehingga login
   lewat HTTPS ditolak `403`. Sekarang membandingkan **host**; jangan dibalikkan.
+- `server.js` **menyentuh model sekali saat start** (warm-up) supaya
+  `/api/ai/status` langsung melaporkan `connected:true`. Tanpa itu, tombol
+  Asisten Belajar terlihat "belum tersambung" sampai ada satu permintaan AI
+  yang berhasil — padahal modelnya sehat.
 - Biner Caddy standar **tidak** punya provider DuckDNS — wajib unduh dengan
   parameter `p=github.com/caddy-dns/duckdns`.
 - Bila `HOST` diubah ke `0.0.0.0`, port app bentrok dengan Caddy di 8788.
