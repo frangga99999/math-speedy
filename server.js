@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {randomBytes,timingSafeEqual} from 'node:crypto';
-import {generateChallenge, isQuestionValid, isSettingsValid, isDigitsValid, digitsRange, SYMBOLS, LIMITS, MINIMUMS} from './engine.js';
+import {generateChallenge, generateIQ, isQuestionValid, isSettingsValid, isDigitsValid, digitsRange, SYMBOLS, LIMITS, MINIMUMS} from './engine.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const env = await fs.readFile(path.join(root, '.env'), 'utf8').catch(() => '');
@@ -121,7 +121,7 @@ async function generateExplanation(question, config) {
 async function generateIQAI(settings,config){
   if(!config.baseURL||!config.model)throw new Error('Asisten Belajar belum terhubung.');
   const url=new URL(`${config.baseURL.replace(/\/$/,'')}/chat/completions`);
-  const response=await fetch(url,{method:'POST',signal:AbortSignal.timeout(15000),redirect:'error',headers:{'Content-Type':'application/json',...(config.apiKey?{Authorization:`Bearer ${config.apiKey}`}:{})},body:JSON.stringify({model:config.model,temperature:.9,max_tokens:350,stream:false,messages:[{role:'system',content:IQ_PROMPT},{role:'user',content:`Level ${settings.difficulty}. Hindari: ${(settings.history||[]).join(',')}.`} ]})});
+  const response=await fetch(url,{method:'POST',signal:AbortSignal.timeout(15000),redirect:'error',headers:{'Content-Type':'application/json',...(config.apiKey?{Authorization:`Bearer ${config.apiKey}`}:{})},body:JSON.stringify({model:config.model,temperature:.9,max_tokens:900,stream:false,messages:[{role:'system',content:IQ_PROMPT},{role:'user',content:`Level ${settings.difficulty}. Hindari: ${(settings.history||[]).join(',')}.`} ]})});
   if(!response.ok)throw new Error('Model belum dapat membuat soal.');
   const raw=(await response.json()).choices?.[0]?.message?.content;
   const q=JSON.parse(raw.trim().replace(/^```(?:json)?\s*|\s*```$/g,''));
@@ -203,7 +203,14 @@ export function createServer({ownerKey=accessKey,hosts=allowedHosts,ai = {baseUR
       if(url.pathname==='/api/iq-test'&&req.method==='POST'){
         let body;try{body=await readJSON(req);}catch{return reply(res,400,{error:'Permintaan tidak valid.'});}
         if(!['mudah','sedang','sulit'].includes(body.difficulty)||!Array.isArray(body.history)||body.history.length>40)return reply(res,400,{error:'Pilihan tes tidak valid.'});
-        try{return reply(res,200,await generateIQAI(body,ai));}catch(error){return reply(res,503,{error:error.message});}
+        try{return reply(res,200,await generateIQAI(body,ai));}
+        catch{
+          // Model kadang memakai seluruh jatah token untuk penalaran internal lalu
+          // mengirim isi kosong. Daripada sesi tes langsung berhenti, pakai soal
+          // bawaan yang setara dan tandai fallback supaya UI memberi tahu pengguna.
+          try{return reply(res,200,{...generateIQ({difficulty:body.difficulty,topic:'mixed',history:body.history}),fallback:true});}
+          catch{return reply(res,503,{error:'Asisten Belajar belum tersedia.'});}
+        }
       }
       if (req.method !== 'GET') return reply(res,405,{error:'Metode tidak didukung.'});
       const file = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);

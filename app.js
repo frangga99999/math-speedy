@@ -461,7 +461,7 @@ async function loadQuestion() {
   const settings = {operation:state.operation, difficulty:state.difficulty, history:state.history, digits:state.operation === 'tambah' ? state.digits : null};
   let question;
   if (state.operation === 'iq' && state.iqTest) {
-    try { const response=await fetch('/api/iq-test',{method:'POST',signal:requestController.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({difficulty:state.difficulty,history:state.history})}); if(response.status===401){location.reload();return;} const data=await response.json();if(!response.ok)throw new Error(data.error);question=data; }
+    try { const response=await fetch('/api/iq-test',{method:'POST',signal:requestController.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({difficulty:state.difficulty,history:state.history})}); if(response.status===401){location.reload();return;} const data=await response.json();if(!response.ok)throw new Error(data.error);question=data;if(question.fallback)showToast('AI belum merespons. Soal bawaan digunakan.'); }
     catch(error){if(currentRequest!==requestId||state.screen!=='challenge')return;state.loading=false;updateQuestion();showToast(error.message||'Asisten Belajar belum tersedia.');setTimeout(()=>finishSession('quit'),800);return;}
   }
   else if (state.operation === 'iq') question = generateIQ({...settings,topic:state.iqTopic});

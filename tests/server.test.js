@@ -74,3 +74,26 @@ test('status AI langsung "terhubung" setelah server dibuat (warm-up saat start)'
     assert.equal(status.model,'private-model');
   } finally {globalThis.fetch=realFetch;await new Promise(resolve=>server.close(resolve));}
 });
+
+test('tes penalaran tetap jalan pakai soal bawaan saat model mengirim isi kosong',async()=>{
+  const ownerKey='test-owner-key-with-more-than-thirty-two-characters';
+  const realFetch=globalThis.fetch;
+  globalThis.fetch=async(url,options)=>{
+    if(String(url).startsWith('https://vps.test/')) return Response.json({choices:[{message:{content:''}}]});
+    return realFetch(url,options);
+  };
+  const server=createServer({ownerKey,ai:{baseURL:'https://vps.test/v1',model:'private-model',apiKey:'test-vps-key'}});
+  server.listen(0,'127.0.0.1');await once(server,'listening');
+  const base=`http://127.0.0.1:${server.address().port}`;
+  try {
+    const login=await fetch(base+'/api/access',{method:'POST',headers:{'Content-Type':'application/json',Origin:base},body:JSON.stringify({key:ownerKey})});
+    const cookie=login.headers.get('set-cookie').split(';')[0];
+    const response=await fetch(base+'/api/iq-test',{method:'POST',headers:{'Content-Type':'application/json',Origin:base,Cookie:cookie},body:JSON.stringify({difficulty:'sedang',history:[]})});
+    assert.equal(response.status,200);
+    const question=await response.json();
+    assert.equal(question.fallback,true);
+    assert.equal(question.operation,'iq');
+    assert.equal(question.sequence.length,4);
+    assert.ok(Number.isInteger(question.answer)&&question.answer>0);
+  } finally {globalThis.fetch=realFetch;await new Promise(resolve=>server.close(resolve));}
+});
