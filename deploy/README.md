@@ -38,7 +38,7 @@ Rahasia **tidak** ada di repo ini:
 
 | Rahasia | Lokasi |
 |---|---|
-| Kunci akses aplikasi | `~/math-speedy/.private-access` (mode 600) |
+| Kunci akses aplikasi | `~/math-speedy/access-key-math.txt` (mode 600) |
 | Kunci API AI | ditunjuk `VPS_AI_KEY_FILE` di `~/math-speedy/.env` |
 | Token DuckDNS | `~/.config/caddy/caddy.env` (`DUCKDNS_TOKEN=...`, mode 600) |
 
@@ -47,7 +47,7 @@ Rahasia **tidak** ada di repo ini:
 1. **Node app**
    ```bash
    rsync -a ./ ubuntu@43.134.180.13:~/math-speedy/ \
-     --exclude .env --exclude .private-access --exclude .vps-ai-key --exclude .git
+     --exclude .env --exclude access-key-math.txt --exclude .vps-ai-key --exclude .git
    ```
    Isi `~/math-speedy/.env`:
    ```env
@@ -58,7 +58,7 @@ Rahasia **tidak** ada di repo ini:
    VPS_AI_MODEL=VPS-Combo-gue
    VPS_AI_KEY_FILE=.vps-ai-key
    ```
-   Bikin `.private-access` (min. 32 karakter, mode 600) dan `.vps-ai-key`.
+   Bikin `access-key-math.txt` (min. 32 karakter, mode 600) dan `.vps-ai-key`.
 
 2. **Caddy** (biner wajib memuat modul DuckDNS):
    ```bash

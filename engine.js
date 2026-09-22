@@ -96,7 +96,7 @@ export function generateIQ({difficulty, topic = 'mixed', history = []}, random =
   const pool = [];
   for (let start = 1; start <= ({mudah:15,sedang:25,sulit:35}[difficulty]); start++) {
     for (let step = 2; step <= 7; step++) {
-      const groups={basic:['add','subtract'],multiply:['multiply'],growing:['growing'],alternate:['alternate'],square:['square']};
+      const groups={basic:['add','subtract'],multiply:['multiply'],growing:['growing'],alternate:['alternate'],square:['square'],fibonacci:['fibonacci'],double:['double'],mixedops:['mixedops']};
       const types=topic==='mixed' ? (difficulty==='mudah'?['add','subtract']:difficulty==='sedang'?['multiply','growing']:['alternate','square']) : groups[topic];
       if (!types) throw new Error('Jenis IQ tidak valid.');
       for (const type of types) {
@@ -107,6 +107,9 @@ export function generateIQ({difficulty, topic = 'mixed', history = []}, random =
         if (type === 'growing') { sequence=Array.from({length:5},(_,i)=>start+i*step+i*(i-1)/2); hint=`Selisih dimulai dari ${step}, lalu bertambah 1 setiap langkah.`; }
         if (type === 'alternate') { sequence=[start,start+step,start+step+1,start+2*step+1,start+2*step+2]; hint=`Dua langkah bergantian: tambah ${step}, lalu tambah 1.`; }
         if (type === 'square') { sequence=Array.from({length:5},(_,i)=>(start+i)**2+step); hint=`Kuadrat bilangan berurutan, masing-masing ditambah ${step}.`; }
+        if (type === 'fibonacci') { sequence=[start,step,start+step,start+2*step,2*start+3*step]; hint='Setiap angka adalah jumlah dua angka sebelumnya.'; }
+        if (type === 'double') { sequence=Array.from({length:5},(_,i)=>start*2**i+(2**i-1)); hint='Kalikan dua, lalu tambah satu.'; }
+        if (type === 'mixedops') { sequence=[start,start+step,(start+step)*2,(start+step)*2+step,((start+step)*2+step)*2]; hint=`Operasi bergantian: tambah ${step}, lalu kali 2.`; }
         const id=sequence.slice(0,4).join(':');
         if (!history.includes(id) && !pool.some(q=>q.id===id)) pool.push({id,operation:'iq',sequence:sequence.slice(0,4),answer:sequence[4],hint,source:'default',type});
       }
@@ -127,12 +130,20 @@ export function referenceRows(operation, number = 2) {
 }
 
 export const AI_LESSONS = [
-  {id:'basics',title:'Angka & persen',icon:'#',intro:'Semua bermula dari angka. Persen hanyalah "per seratus" — cara ringkas menulis pecahan. Ini fondasi untuk memahami data dan peluang di AI.',formula:'p% dari n = n × p ÷ 100',example:'20% dari 50 = 50 × 20 ÷ 100 = 10',hint:'Ubah p% menjadi p ÷ 100, lalu kalikan dengan angkanya.'},
+  {id:'place',title:'Nilai tempat',icon:'10',intro:'Mulai dari cara satuan, puluhan, dan ratusan membentuk sebuah angka.',formula:'347 = 300 + 40 + 7',example:'Digit 4 pada 347 bernilai 40.',hint:'Perhatikan posisi digit dari kanan.',source:'EEF · lintasan belajar'},
+  {id:'mental',title:'Hitung lentur',icon:'±',intro:'Pecah angka menjadi bagian yang lebih mudah, lalu gabungkan kembali.',formula:'38 + 27 = 38 + 20 + 7',example:'38 + 20 = 58, lalu +7 = 65.',hint:'Pisahkan puluhan dan satuan.',source:'EEF · kefasihan strategi'},
+  {id:'fractions',title:'Pecahan',icon:'½',intro:'Pecahan menunjukkan bagian dari satu keseluruhan yang dibagi sama besar.',formula:'½ dari n = n ÷ 2',example:'½ dari 12 = 6.',hint:'Bagi angka dengan penyebutnya.',source:'EEF · representasi'},
+  {id:'decimals',title:'Desimal',icon:'.',intro:'Desimal adalah cara lain menulis persepuluhan dan perseratusan.',formula:'0,1 × n = n ÷ 10',example:'0,1 × 80 = 8.',hint:'Geser satu nilai tempat ke kanan.',source:'EEF · representasi'},
+  {id:'ratio',title:'Rasio',icon:':',intro:'Rasio membandingkan dua jumlah dan menjaga hubungan keduanya.',formula:'a : b = ka : kb',example:'2 : 3, jika 2 menjadi 4 maka 3 menjadi 6.',hint:'Kalikan kedua sisi dengan angka yang sama.',source:'EEF · penalaran multiplikatif'},
+  {id:'money',title:'Uang & diskon',icon:'Rp',intro:'Latih perkiraan harga, kembalian, dan diskon untuk keputusan sehari-hari.',formula:'harga akhir = harga − diskon',example:'Rp100 ribu diskon 20% menjadi Rp80 ribu.',hint:'Cari nilai diskon, lalu kurangkan.',source:'Adult numeracy · konteks nyata'},
+  {id:'measurement',title:'Ukuran & waktu',icon:'↔',intro:'Gunakan satuan untuk membaca jarak, durasi, berat, dan kapasitas.',formula:'1 jam = 60 menit',example:'2 jam = 120 menit.',hint:'Kalikan jumlah jam dengan 60.',source:'Adult numeracy · konteks nyata'},
+  {id:'basics',title:'Persen',icon:'%',intro:'Persen berarti per seratus dan membantu membaca diskon, bunga, serta data.',formula:'p% dari n = n × p ÷ 100',example:'20% dari 50 = 10.',hint:'Ubah persen menjadi bagian dari seratus.',source:'EEF · proporsi'},
   {id:'algebra',title:'Fungsi & bobot',icon:'ƒ',intro:'Model AI bekerja seperti mesin: menerima input, lalu memprosesnya menjadi prediksi. Bobot menentukan seberapa besar pengaruh tiap input.',formula:'y = w × x + b',example:'x = 3, w = 2, b = 1 → y = 7',hint:'Kalikan bobot dengan input, lalu tambah bias.'},
   {id:'vectors',title:'Vektor',icon:'→',intro:'Vektor menyimpan beberapa angka sekaligus. Dot product menggabungkan tiap fitur dengan bobotnya menjadi satu nilai.',formula:'[a, b] · [c, d] = a×c + b×d',example:'[2, 3] · [4, 1] = 8 + 3 = 11',hint:'Kalikan pasangan angka pada posisi yang sama, lalu jumlahkan.'},
   {id:'mean',title:'Rata-rata data',icon:'μ',intro:'Rata-rata merangkum pusat data. Ini cara AI "merasakan" kumpulan angka sebelum mulai belajar.',formula:'Rata-rata = jumlah nilai ÷ banyak nilai',example:'[2, 4, 6] → (2 + 4 + 6) ÷ 3 = 4',hint:'Jumlahkan semua nilai, lalu bagi dengan banyaknya nilai.'},
   {id:'probability',title:'Peluang',icon:'%',intro:'Peluang menyatakan seberapa mungkin suatu kejadian. AI menyajikan prediksi sebagai peluang, misalnya "80% yakin".',formula:'Peluang (%) = bagian ÷ total × 100',example:'3 dari 10 sampel → 30%',hint:'Bagi jumlah kejadian dengan total, lalu kalikan 100.'},
-  {id:'gradient',title:'Gradien & belajar',icon:'∇',intro:'Gradien menunjukkan arah perubahan. Model belajar dengan bergerak berlawanan arah gradien untuk memperkecil kesalahan.',formula:'L(w) = w² → gradien = 2w',example:'w = 3 → gradien = 6. Dengan langkah 0,1, bobot baru = 3 − 0,1×6 = 2,4.',hint:'Untuk fungsi kuadrat ini, gradien adalah dua kali bobot w.'}
+  {id:'gradient',title:'Gradien & belajar',icon:'∇',intro:'Gradien menunjukkan arah perubahan. Model belajar dengan bergerak berlawanan arah gradien untuk memperkecil kesalahan.',formula:'L(w) = w² → gradien = 2w',example:'w = 3 → gradien = 6.',hint:'Untuk fungsi kuadrat ini, gradien adalah dua kali bobot w.',source:'Matematika mesin'},
+  {id:'estimation',title:'Estimasi',icon:'≈',intro:'Estimasi membantu memeriksa apakah jawaban masuk akal sebelum menghitung tepat.',formula:'47 × 21 ≈ 50 × 20',example:'50 × 20 = 1.000, jadi hasil tepat seharusnya dekat.',hint:'Bulatkan ke puluhan terdekat.',source:'EEF · metakognisi'}
 ];
 
 export function generateAIMath({topic='algebra',difficulty='mudah',history=[]},random=Math.random) {
@@ -140,12 +151,20 @@ export function generateAIMath({topic='algebra',difficulty='mudah',history=[]},r
   const max={mudah:6,sedang:10,sulit:20}[difficulty], pool=[];
   for(let a=1;a<=max;a++) for(let b=1;b<=max;b++) {
     let display,answer,prompt;
+    if(topic==='place'){display=`Nilai digit ${b%9+1} pada ${(a%9+1)*100+(b%9+1)*10+a%10}`;answer=(b%9+1)*10;prompt='Berapa nilai tempatnya?';}
+    if(topic==='mental'){display=`${a*10+b} + ${b*10+a}`;answer=11*(a+b);prompt='Hitung dengan memecah angka';}
+    if(topic==='fractions'){display=`½ dari ${2*a*b}`;answer=a*b;prompt='Berapa bagiannya?';}
+    if(topic==='decimals'){display=`0,1 × ${a*b*10}`;answer=a*b;prompt='Berapa nilainya?';}
+    if(topic==='ratio'){display=`${a} : ${b} = ${a*2} : ?`;answer=b*2;prompt='Lengkapi rasio';}
+    if(topic==='money'){display=`Diskon ${a*10}% dari ${b*10000}`;answer=a*b*1000;prompt='Berapa nilai diskon?';}
+    if(topic==='measurement'){display=`${a+b} jam = ? menit`;answer=(a+b)*60;prompt='Ubah ke menit';}
     if(topic==='basics'){display=`${a*10}% dari ${b*10}`;answer=a*b;prompt='Berapa nilainya?';}
     if(topic==='algebra'){display=`${a} × ${b} + ${a+1}`;answer=a*b+a+1;prompt='Hitung prediksi y';}
     if(topic==='vectors'){display=`[${a}, ${b}] · [2, 3]`;answer=a*2+b*3;prompt='Hitung dot product';}
     if(topic==='mean'){display=`${a} · ${a+b} · ${a+2*b}`;answer=a+b;prompt='Berapa rata-ratanya?';}
     if(topic==='probability'){const total=difficulty==='mudah'?10:difficulty==='sedang'?20:100;const count=(a+b-2)%total+1;display=`${count} dari ${total}`;answer=count/total*100;prompt='Berapa persen?';}
     if(topic==='gradient'){display=`w = ${a+b}`;answer=2*(a+b);prompt='Gradien L(w) = w²?';}
+    if(topic==='estimation'){display=`Bulatkan ${a*10+b} ke puluhan`;answer=Math.round((a*10+b)/10)*10;prompt='Berapa estimasinya?';}
     const id=`${topic}:${display}`;
     if(!history.includes(id)&&!pool.some(q=>q.id===id))pool.push({id,operation:'aimath',display,prompt,answer:Math.round(answer),hint:AI_LESSONS.find(x=>x.id===topic).hint,source:'default'});
   }

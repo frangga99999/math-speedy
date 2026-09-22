@@ -10,7 +10,7 @@ tags: [math-speedy, mathspeedy, vps, systemd, telegram, access-key, caddy, duckd
 Aplikasi latihan aritmatika **privat** milik user. Node.js murni tanpa dependensi,
 UI berbahasa Indonesia. Soal bisa dibuat mesin bawaan (`engine.js`) atau oleh AI
 (`VPS-Combo-gue` lewat 9router lokal). Akses dilindungi **kunci akses pemilik**
-(file `.private-access`) + cookie sesi `HttpOnly; SameSite=Strict`.
+(file `access-key-math.txt`) + cookie sesi `HttpOnly; SameSite=Strict`.
 
 ## Fakta kunci
 
@@ -23,7 +23,7 @@ UI berbahasa Indonesia. Soal bisa dibuat mesin bawaan (`engine.js`) atau oleh AI
 | URL publik | `https://mathspeedy.duckdns.org:8788/` (tersimpan di `~/math-speedy/.public-url`) |
 | HTTPS | Caddy (`systemctl --user caddy.service`), sertifikat Let's Encrypt via **DNS-01 DuckDNS**, auto-renew |
 | Konfigurasi Caddy | `~/.config/caddy/Caddyfile`, token di `~/.config/caddy/caddy.env` |
-| Kunci akses | `~/math-speedy/.private-access` |
+| Kunci akses | `~/math-speedy/access-key-math.txt` |
 | AI | 9router lokal `http://127.0.0.1:20128/v1`, model `VPS-Combo-gue`, **WAJIB `stream:false`** |
 | Log | `journalctl --user -u mathspeedy.service` (app) atau `-u caddy.service` (TLS) |
 

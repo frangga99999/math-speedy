@@ -5,7 +5,7 @@ set -euo pipefail
 
 APP_DIR="${MATHSPEEDY_DIR:-$HOME/math-speedy}"
 SERVICE="${MATHSPEEDY_SERVICE:-mathspeedy}"
-KEYFILE="$APP_DIR/.private-access"
+KEYFILE="$APP_DIR/access-key-math.txt"
 URLFILE="$APP_DIR/.public-url"
 ENVFILE="$APP_DIR/.env"
 

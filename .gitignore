@@ -1,8 +1,8 @@
 .env
 .vps-ai-key
+access-key-math.txt
 .telegram-control.env
 node_modules/
 
-.private-access
 .orig-backup/
 .DS_Store

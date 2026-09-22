@@ -5,7 +5,7 @@ const app = document.querySelector('#app');
 const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
 const TOTAL = 10;
 const operations = {
-  aimath: {symbol:'∇',label:'Matematika AI',short:'Belajar AI'},
+  aimath: {symbol:'∇',label:'Asisten Belajar',short:'Konsep mesin'},
   iq: {symbol:'⋯', label:'Latihan IQ', short:'Pola angka'},
   tambah: { symbol: '+', label: 'Penjumlahan', short: 'Tambah', example: '8 + 4', answer: '12', color: 'mint' },
   kurang: { symbol: '−', label: 'Pengurangan', short: 'Kurang', example: '8 − 4', answer: '4', color: 'peach' },
@@ -45,12 +45,12 @@ const GUIDE = [
     steps: ['Lihat selisih antar angka.', 'Temukan pola yang berulang.', 'Terapkan pola ke angka berikutnya.'],
     example: '2, 4, 6, 8, ? → setiap angka naik 2, jadi jawabannya 10.',
     tip: 'Mulai dari selisih antar angka. Pola paling umum: tambah atau kali.' },
-  { id: 'aimath', symbol: '∇', title: 'Matematika AI', color: 'lilac', tagline: 'Bahasa di balik AI',
-    what: 'Matematika AI mengajarkan konsep sederhana yang dipakai mesin untuk belajar.',
+  { id: 'aimath', symbol: '∇', title: 'Asisten Belajar', color: 'lilac', tagline: 'Matematika mesin',
+    what: 'Asisten Belajar mengajarkan konsep sederhana yang dipakai mesin untuk belajar.',
     analogy: 'Seperti resep masakan: input adalah bahan, model adalah cara mengolahnya.',
     steps: ['Baca penjelasan materi.', 'Lihat rumus dan contohnya.', 'Kerjakan 10 soal untuk menguasainya.'],
     example: 'Fungsi y = w × x + b mengubah input x menjadi prediksi y.',
-    tip: 'Buka menu Matematika AI untuk materi lengkap mulai dari nol.' }
+    tip: 'Buka Asisten Belajar untuk memulai dari nol.' }
 ];
 const state = { screen: 'home', operation: 'kali', difficulty: 'mudah', question: null, previous: '', index: 0, score: 0, lives: 5, input: '', loading: false, feedback: '', error: '', answered: 0, engine: 'default', digits: null, history: [], remaining: 80 };
 let requestId = 0;
@@ -59,7 +59,7 @@ let nextQuestionTimer;
 let sessionClock;
 let clockTick = 0;
 let stageObserver;
-state.iqTopic='mixed'; state.aiTopic='algebra';
+state.iqTopic='mixed'; state.aiTopic='place'; state.iqTest=false;
 let aiConnected = false;
 let aiConfigured = false;
 let aiModel = '';
@@ -117,7 +117,7 @@ function renderHome() {
   app.innerHTML = `
     <section class="dashboard-home" aria-label="Beranda">
       <div class="home-main-panel">
-        <header class="dashboard-header"><a href="#home" class="brand wordmark" aria-label="Math Speedy, beranda">SpeedyMath</a><button class="home-account" id="account" aria-label="Pengaturan AI VPS">${svg('spark', 20)}<i class="${aiConnected ? 'connected' : ''}"></i></button></header>
+        <header class="dashboard-header"><a href="#home" class="brand wordmark" aria-label="Math Speedy, beranda">SpeedyMath</a><button class="home-account" id="account" aria-label="Pengaturan Asisten Belajar">${svg('spark', 20)}<i class="${aiConnected ? 'connected' : ''}"></i></button></header>
         <section class="training-dashboard" aria-labelledby="progress-title">
           <div class="dashboard-heading"><h1 id="progress-title">Progres latihan</h1><span class="streak-pill">${svg('bolt', 13)} ${progress.streak} hari</span></div>
           <div class="visual-progress ${motionPreference.matches ? 'motion-paused' : ''}">
@@ -138,24 +138,23 @@ function renderHome() {
       </div>
       <div class="home-extras">
         <section class="weekly-card" aria-labelledby="weekly-title"><div class="section-heading"><h2 id="weekly-title">Ritme minggu ini</h2><span>${progress.days.reduce((n, d) => n + d.answered, 0)} soal</span></div><div class="weekly-chart" role="img" aria-label="${progress.days.map(day => `${day.label}: ${day.answered} soal`).join(', ')}">${progress.days.map((day, i) => `<div class="day-column ${i === 6 ? 'today' : ''}"><span class="day-count">${day.answered || '–'}</span><div class="day-track"><i style="--bar-height:${Math.max(day.answered ? 8 : 0, day.answered / maxDay * 100)}%"></i></div><span>${day.label}</span></div>`).join('')}</div></section>
-        <button class="ai-feature" id="ai-practice"><span class="ai-feature-icon">${svg('spark', 25)}</span><span><strong>Latihan dengan AI</strong><small>${aiConnected ? 'VPS terhubung · soal lebih variatif' : aiConfigured ? 'Model VPS · siap diuji' : 'Siapkan model VPS pribadi'}</small></span>${svg('arrow', 20)}</button>
-        <button class="ai-feature" id="show-guide"><span class="ai-feature-icon">${svg('book', 25)}</span><span><strong>Panduan lengkap</strong><small>Penjelasan & analogi sederhana</small></span>${svg('arrow', 20)}</button>
+        <button class="ai-feature" id="ai-practice"><span class="ai-feature-icon">${svg('spark', 25)}</span><span><strong>Asisten Belajar</strong><small>${aiConnected ? 'Siap membuat soal & visual' : aiConfigured ? 'Model pribadi siap diuji' : 'Penjelasan visual per soal'}</small></span>${svg('arrow', 20)}</button>
         <section class="recent-section" aria-labelledby="recent-title"><div class="section-heading"><h2 id="recent-title">Latihan terakhir</h2><span>Di perangkat ini</span></div>${progress.recent.length ? `<div class="recent-list">${progress.recent.map(session => `<button class="recent-item" data-practice="${session.operation}" data-level="${session.difficulty}" aria-label="Ulangi ${operations[session.operation].label}, ${levels[session.difficulty].label}"><span class="recent-symbol">${operations[session.operation].symbol}</span><span class="recent-name"><strong>${operations[session.operation].label}</strong><small>${levels[session.difficulty].label} · ${new Intl.DateTimeFormat('id-ID', {day:'numeric', month:'short'}).format(new Date(session.at))} · ${session.reason === 'completed' ? 'Tuntas' : 'Belum tuntas'}</small></span><span class="recent-score">${session.score}<small>/${session.answered}</small></span>${svg('refresh', 16)}</button>`).join('')}</div>` : `<div class="history-empty">${svg('grid', 25)}<div><strong>Belum ada latihan</strong><p>Hasil latihanmu akan muncul di sini.</p></div></div>`}</section>
         <footer class="dashboard-footer"><span class="footer-dot"></span> Progres tersimpan otomatis di perangkat ini</footer>
       </div>
     </section>`;
 }
 
-const IQ_TOPICS={mixed:'Campuran',basic:'Tambah & kurang',multiply:'Pola perkalian',growing:'Selisih bertingkat',alternate:'Pola bergantian',square:'Pola kuadrat'};
+const IQ_TOPICS={mixed:'Campuran',basic:'Tambah & kurang',multiply:'Pola perkalian',growing:'Selisih bertingkat',alternate:'Pola bergantian',square:'Pola kuadrat',fibonacci:'Jumlah berantai',double:'Dobel + satu',mixedops:'Operasi bergantian'};
 function showIQMenu(){
   document.querySelectorAll('dialog[open]').forEach(d=>d.close());
-  openDialog(`<button class="dialog-close" data-close aria-label="Tutup pilihan IQ">${svg('close')}</button><span class="eyebrow">01 · PILIH JENIS</span><h2>Latihan IQ</h2><div class="topic-grid">${Object.entries(IQ_TOPICS).map(([id,label],i)=>`<button data-iq-topic="${id}"><span>${['⋯','±','×','↗','⇄','²'][i]}</span>${label}</button>`).join('')}</div>`);
+  openDialog(`<button class="dialog-close" data-close aria-label="Tutup pilihan IQ">${svg('close')}</button><span class="eyebrow">PENALARAN NUMERIK</span><h2>Pilih latihan</h2><button class="iq-test-feature" id="start-iq-test"><span>${svg('spark',24)}</span><strong>Tes penalaran<small>10 soal adaptif · dibuat Asisten Belajar</small></strong>${svg('arrow',18)}</button><div class="topic-grid">${Object.entries(IQ_TOPICS).map(([id,label],i)=>`<button data-iq-topic="${id}"><span>${['⋯','±','×','↗','⇄','²','∞','2×','±×'][i]}</span>${label}</button>`).join('')}</div>`);
 }
 function showCourse(){
   document.querySelectorAll('dialog[open]').forEach(d=>d.close());
   let records=[];try{records=readProgress(localStorage);}catch{}
   const done=new Set(records.filter(s=>s.operation==='aimath'&&s.reason==='completed'&&s.score>=7).map(s=>s.topic));
-  const dialog=openDialog(`<button class="dialog-close" data-close aria-label="Tutup materi AI">${svg('close')}</button><span class="eyebrow">DARI DASAR · ${done.size}/${AI_LESSONS.length} TUNTAS</span><h2>Matematika untuk AI</h2><p>Baca contoh → pilih level → kerjakan 10 soal. Raih 7 benar untuk menuntaskan materi.</p><div class="course-path">${AI_LESSONS.map((lesson,i)=>`<button data-lesson="${lesson.id}"><span class="lesson-number">${done.has(lesson.id)?svg('check',16):String(i+1).padStart(2,'0')}</span><span>${lesson.title}<small>${done.has(lesson.id)?'Tuntas':'Materi + tantangan'}</small></span>${svg('arrow',16)}</button>`).join('')}</div>`);dialog.classList.add('course-dialog');
+  const dialog=openDialog(`<button class="dialog-close" data-close aria-label="Tutup materi">${svg('close')}</button><span class="eyebrow">JALUR DEWASA · ${done.size}/${AI_LESSONS.length}</span><h2>Mulai tanpa takut</h2><p>Konsep pendek, visual, lalu praktik. Disusun dari prinsip representasi, worked examples, dan strategi lentur.</p><div class="course-path">${AI_LESSONS.map((lesson,i)=>`<button data-lesson="${lesson.id}"><span class="lesson-number">${done.has(lesson.id)?svg('check',16):String(i+1).padStart(2,'0')}</span><span>${lesson.title}<small>${done.has(lesson.id)?'Tuntas':lesson.source||'Visual + tantangan'}</small></span>${svg('arrow',16)}</button>`).join('')}</div><p class="course-evidence">Rujukan pembelajaran: Stanford GSE · Education Endowment Foundation.</p>`);dialog.classList.add('course-dialog');
 }
 function showLesson(id){
   const lesson=AI_LESSONS.find(x=>x.id===id);if(!lesson)return;
@@ -176,7 +175,7 @@ function showSetup(operation = state.operation) {
   const dialog = openDialog(`<button class="dialog-close" data-close aria-label="Tutup pengaturan">${svg('close')}</button><span class="eyebrow">10 SOAL · 80 DETIK · 5 NYAWA</span><h2>${operation==='iq'?IQ_TOPICS[state.iqTopic]:operation==='aimath'?AI_LESSONS.find(x=>x.id===state.aiTopic).title:operations[operation].label}</h2>
     <div class="difficulty-tabs" role="group" aria-label="Pilih tingkat kesulitan" style="--selected:${Object.keys(levels).indexOf(state.difficulty)}"><span class="difficulty-indicator" aria-hidden="true"></span>${Object.entries(levels).map(([key, level], i) => `<button class="difficulty" data-difficulty="${key}">${bars(i + 1)}${level.label}</button>`).join('')}</div>
     <p class="setup-level-hint" id="level-hint">${levels[state.difficulty].hint}</p>${operation === 'tambah' ? digitOptionsMarkup() : ''}${operation==='iq'?'<button class="text-button" id="iq-back">Ganti jenis pola</button>':''}
-    <div class="engine-options" ${['iq','aimath'].includes(operation) ? 'hidden' : ''} role="group" aria-label="Sumber soal"><button data-engine="default">Bawaan <span>Gratis</span></button><button data-engine="ai">${svg('spark', 13)} AI ${aiConfigured ? '<span>VPS</span>' : '<span>Atur VPS</span>'}</button></div><button class="reference-button" id="show-reference">${svg('grid',16)} ${operation==='aimath'?'Baca materi':operation === 'iq' ? 'Panduan pola angka' : 'Tabel ' + operations[operation].label.toLowerCase()}</button><button class="text-button" id="show-guide">${svg('book',16)} Panduan lengkap</button>${operation === 'iq' ? '<p class="iq-note">Latihan logika angka · bukan pengukuran skor IQ.</p>' : ''}<button class="primary-button" id="start"><span>Mulai latihan</span>${svg('arrow', 20)}</button>`);
+    <div class="engine-options" ${['iq','aimath'].includes(operation) ? 'hidden' : ''} role="group" aria-label="Sumber soal"><button data-engine="default">Bawaan <span>Gratis</span></button><button data-engine="ai">${svg('spark', 13)} Asisten ${aiConfigured ? '<span>VPS</span>' : '<span>Atur</span>'}</button></div><button class="reference-button" id="show-reference">${svg('grid',16)} ${operation==='aimath'?'Baca materi':operation === 'iq' ? 'Panduan pola angka' : 'Tabel ' + operations[operation].label.toLowerCase()}</button>${operation === 'iq' ? '<p class="iq-note">Latihan logika angka · bukan pengukuran skor IQ.</p>' : ''}<button class="primary-button" id="start"><span>Mulai latihan</span>${svg('arrow', 20)}</button>`);
   dialog.classList.add('practice-dialog');
   updateHomeSelection();
 }
@@ -252,8 +251,8 @@ function renderChallenge() {
 function renderWrittenChallenge() {
   const isAI = state.operation === 'aimath';
   const contextLabel = isAI
-    ? AI_LESSONS.find(lesson => lesson.id === state.aiTopic)?.title || 'Matematika AI'
-    : IQ_TOPICS[state.iqTopic] || 'Latihan IQ';
+    ? AI_LESSONS.find(lesson => lesson.id === state.aiTopic)?.title || 'Asisten Belajar'
+    : state.iqTest ? 'Tes penalaran' : IQ_TOPICS[state.iqTopic] || 'Latihan IQ';
   app.innerHTML = `
     <section class="written-challenge ${isAI ? 'written-ai' : 'written-iq'}" aria-label="${isAI ? 'Tantangan matematika AI' : 'Latihan pola angka'}">
       <header class="written-header">
@@ -304,7 +303,7 @@ function updateQuestion() {
   equation.textContent = q ? (q.operation === 'aimath' ? q.display : q.operation === 'iq' ? `${q.sequence.join(' · ')} · ?` : `${q.a} ${q.symbol} ${q.b}`) : '…';
   equation.classList.toggle('iq-equation', ['iq','aimath'].includes(state.operation));
   equation.setAttribute('aria-label', q ? q.operation === 'aimath' ? `${q.prompt} ${q.display}` : q.operation === 'iq' ? `Lanjutkan pola: ${q.sequence.join(', ')}, tanda tanya` : `${q.a} ${operations[q.operation].label} ${q.b}` : 'Menyiapkan soal');
-  app.querySelector('#question-prompt').textContent = state.loading ? 'Menyiapkan soal…' : state.operation === 'aimath' ? (q?.prompt || 'Matematika AI') : state.operation === 'iq' ? 'Angka berikutnya?' : 'Berapa hasilnya?';
+  app.querySelector('#question-prompt').textContent = state.loading ? 'Menyiapkan soal…' : state.operation === 'aimath' ? (q?.prompt || 'Asisten Belajar') : state.operation === 'iq' ? 'Angka berikutnya?' : 'Berapa hasilnya?';
   app.querySelector('.figma-stage, .written-challenge')?.classList.remove('is-correct', 'is-wrong');
   app.querySelector('#feedback').textContent = `Soal ${state.index + 1} dari ${TOTAL}. ${state.score} benar.`;
   const writtenStep = app.querySelector('#written-step');
@@ -461,7 +460,11 @@ async function loadQuestion() {
   updateQuestion();
   const settings = {operation:state.operation, difficulty:state.difficulty, history:state.history, digits:state.operation === 'tambah' ? state.digits : null};
   let question;
-  if (state.operation === 'iq') question = generateIQ({...settings,topic:state.iqTopic});
+  if (state.operation === 'iq' && state.iqTest) {
+    try { const response=await fetch('/api/iq-test',{method:'POST',signal:requestController.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({difficulty:state.difficulty,history:state.history})}); if(response.status===401){location.reload();return;} const data=await response.json();if(!response.ok)throw new Error(data.error);question=data; }
+    catch(error){if(currentRequest!==requestId||state.screen!=='challenge')return;state.loading=false;updateQuestion();showToast(error.message||'Asisten Belajar belum tersedia.');setTimeout(()=>finishSession('quit'),800);return;}
+  }
+  else if (state.operation === 'iq') question = generateIQ({...settings,topic:state.iqTopic});
   else if (state.operation === 'aimath') question=generateAIMath({...settings,topic:state.aiTopic});
   else if (state.engine === 'default') question = generateChallenge(settings);
   else {
@@ -521,13 +524,30 @@ function openDialog(content) {
   return dialog;
 }
 
-function showHelp() {
-  openDialog(`<button class="dialog-close" data-close aria-label="Tutup bantuan">${svg('close')}</button><span class="eyebrow">PETUNJUK</span><h2>Satu langkah lagi.</h2><p>${escapeHtml(hintFor(state.question))}</p><button class="primary-button" data-close>Lanjutkan</button>`);
+function explanationVisual(data) {
+  const values=data.visual.values.map(Number);
+  if(data.visual.type==='sequence') return `<div class="visual-sequence">${values.map((v,i)=>`<span>${v}${i<values.length-1?'<i>→</i>':''}</span>`).join('')}</div>`;
+  if(data.visual.type==='groups') { const groups=Math.min(6,Math.max(1,Number(state.question.b)||2)); return `<div class="visual-groups">${Array.from({length:groups},(_,i)=>`<span><b>${i+1}</b>${Array.from({length:Math.min(8,Math.max(1,Number(state.question.a)||1))},()=>'<i></i>').join('')}</span>`).join('')}</div>`; }
+  if(data.visual.type==='number-line') { const [a,b,result]=values; return `<div class="visual-number-line"><span>${a}</span><i style="--distance:${Math.min(100,Math.max(22,Math.abs(b)*9))}%"><b>${state.question.operation==='kurang'?'−':'+'}${b}</b></i><span>${result}</span></div>`; }
+  return `<div class="visual-formula"><span>${escapeHtml(data.visual.labels[0]||state.question.display||'Rumus')}</span><i>${svg('arrow',22)}</i><strong>${escapeHtml(data.visual.labels.at(-1)||values.at(-1)||'')}</strong></div>`;
+}
+
+async function showHelp() {
+  const dialog=openDialog(`<button class="dialog-close" data-close aria-label="Tutup Asisten Belajar">${svg('close')}</button><span class="eyebrow">ASISTEN BELAJAR</span><div class="explanation-loading" role="status"><i></i><i></i><i></i><span>Menyusun visual…</span></div>`);
+  dialog.classList.add('explanation-dialog');
+  try {
+    const response=await fetch('/api/explanation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:state.question})});
+    const data=await response.json(); if(!response.ok) throw new Error(data.error||'Penjelasan belum tersedia.');
+    let step=0;
+    const render=()=>{dialog.innerHTML=`<button class="dialog-close" data-close aria-label="Tutup Asisten Belajar">${svg('close')}</button><span class="eyebrow">ASISTEN BELAJAR · ${step+1}/${data.steps.length}</span><h2>${escapeHtml(data.title)}</h2><div class="explanation-visual">${explanationVisual(data)}</div><div class="explanation-step"><span>LANGKAH ${step+1}</span><p>${escapeHtml(data.steps[step])}</p></div><div class="explanation-dots" aria-hidden="true">${data.steps.map((_,i)=>`<i class="${i===step?'active':''}"></i>`).join('')}</div><div class="explanation-actions"><button class="text-button" id="explain-prev" ${step===0?'disabled':''}>${svg('back',16)} Kembali</button><button class="primary-button" id="explain-next">${step===data.steps.length-1?'Paham':'Lanjut'} ${svg(step===data.steps.length-1?'check':'arrow',17)}</button></div><small class="explanation-source">${data.source==='asisten'?'Dibuat model pribadimu':'Visual lokal'}</small>`; animate(dialog.querySelector('.explanation-visual'),[{opacity:0,transform:'scale(.94)'},{opacity:1,transform:'scale(1)'}],{duration:420});};
+    dialog.addEventListener('click',event=>{if(event.target.closest('#explain-prev')){step--;render();}if(event.target.closest('#explain-next')){if(step===data.steps.length-1)dialog.close();else{step++;render();}}});
+    render();
+  } catch(error) { dialog.innerHTML=`<button class="dialog-close" data-close aria-label="Tutup">${svg('close')}</button><h2>Belum berhasil</h2><p>${escapeHtml(error.message)}</p><button class="primary-button" data-close>Coba nanti</button>`; }
 }
 
 function showAccount() {
   document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
-  const dialog = openDialog(`<button class="dialog-close" data-close aria-label="Tutup">${svg('close')}</button><div class="ai-dialog-icon">${svg('spark', 29)}<span class="success-burst" aria-hidden="true"></span></div><span class="eyebrow">AI VPS PRIBADI</span><h2>${aiConfigured ? 'Modelmu, latihanmu.' : 'Hubungkan model VPS'}</h2><p>${aiConfigured ? escapeHtml(aiModel) : 'Endpoint dan nama model VPS belum diatur. Latihan bawaan tetap bisa digunakan.'}</p><div class="ai-connection-status" role="status">${aiConnected ? 'VPS sudah berhasil menghasilkan soal.' : aiConfigured ? 'Uji koneksi sebelum mulai berlatih.' : 'Menunggu konfigurasi VPS.'}</div>${aiConfigured ? `<button class="primary-button" id="test-vps">${svg('refresh',18)} <span>Uji koneksi VPS</span></button><button class="text-button" id="use-vps">Latihan dengan AI</button>` : '<button class="primary-button" data-close>Gunakan soal bawaan</button>'}<button class="text-button" id="lock-app">${svg('close',15)} Kunci aplikasi</button>`);
+  const dialog = openDialog(`<button class="dialog-close" data-close aria-label="Tutup">${svg('close')}</button><div class="ai-dialog-icon">${svg('spark', 29)}<span class="success-burst" aria-hidden="true"></span></div><span class="eyebrow">ASISTEN BELAJAR</span><h2>${aiConfigured ? 'Model pribadimu siap.' : 'Hubungkan model VPS'}</h2><p>${aiConfigured ? escapeHtml(aiModel) : 'Tambahkan endpoint dan model di konfigurasi server.'}</p><div class="ai-connection-status" role="status">${aiConnected ? 'Siap membuat soal dan penjelasan visual.' : aiConfigured ? 'Uji koneksi untuk mulai.' : 'Visual lokal tetap tersedia.'}</div>${aiConfigured ? `<button class="primary-button" id="test-vps">${svg('refresh',18)} <span>Uji model</span></button><button class="text-button" id="use-vps">Mulai dengan Asisten</button>` : '<button class="primary-button" data-close>Tutup</button>'}`);
   dialog.classList.add('ai-dialog');
   animate(dialog.querySelector('.ai-dialog-icon'), [{transform:'rotate(-30deg) scale(.5)',opacity:0},{transform:'rotate(10deg) scale(1.12)',opacity:1,offset:.7},{transform:'rotate(0) scale(1)',opacity:1}], {duration:600});
   dialog.querySelector('#test-vps')?.addEventListener('click', async event => {
@@ -548,10 +568,6 @@ function showAccount() {
     finally { button.disabled=false; button.classList.remove('is-testing'); button.querySelector('span').textContent='Uji kembali'; if(state.screen==='home') renderHome(); }
   });
   dialog.querySelector('#use-vps')?.addEventListener('click',()=>{state.engine='ai';dialog.close();showSetup();});
-  dialog.querySelector('#lock-app').addEventListener('click',async()=>{
-    try { const response=await fetch('/api/access/logout',{method:'POST'}); if(!response.ok) throw new Error(); location.reload(); }
-    catch { showToast('Aplikasi belum berhasil dikunci. Coba lagi.'); }
-  });
 }
 
 async function checkAccount() {
@@ -568,6 +584,7 @@ function renderResult() {
   const accuracy = state.answered ? Math.round(state.score / state.answered * 100) : 0;
   const completed = state.reason === 'completed';
   const title = completed ? (state.score === TOTAL ? 'Sempurna!' : 'Tantangan selesai!') : state.reason === 'timeout' ? 'Waktu habis' : state.reason === 'lives' ? 'Coba lagi, yuk.' : 'Latihan diakhiri';
+  const reasoningIndex=Math.round(accuracy*.8+Math.min(state.answered/TOTAL,1)*20);
   app.innerHTML = `
     <section class="result-screen ${completed ? 'result-completed' : ''}">
       <header class="result-header"><a href="#home" class="brand wordmark" aria-label="Math Speedy, beranda">SpeedyMath</a><button class="result-close" id="result-home" aria-label="Kembali ke beranda">${svg('close')}</button></header>
@@ -576,7 +593,8 @@ function renderResult() {
         <span class="eyebrow">${completed ? 'SESI TUNTAS' : `${state.answered} SOAL DIKERJAKAN`}</span>
         <h1 tabindex="-1">${title}</h1>
         <p>${completed ? 'Satu latihan lagi. Satu langkah maju.' : 'Progresmu tetap berarti. Lanjutkan lagi kapan saja.'}</p>
-        <div class="result-card"><span>JAWABAN BENAR</span><strong><b id="result-score">${state.score}</b><small> / ${state.answered}</small></strong><div class="result-stats"><span><b>${accuracy}%</b> Akurasi</span><span><b>${state.answered}/${TOTAL}</b> Soal dikerjakan</span></div></div>
+        <div class="result-card"><span>${state.iqTest?'INDEKS PENALARAN':'JAWABAN BENAR'}</span><strong><b id="result-score">${state.iqTest?reasoningIndex:state.score}</b><small>${state.iqTest?' / 100':` / ${state.answered}`}</small></strong><div class="result-stats"><span><b>${accuracy}%</b> Akurasi</span><span><b>${state.answered}/${TOTAL}</b> Soal dikerjakan</span></div></div>
+        ${state.iqTest?'<p class="iq-result-note">Skor latihan, bukan skor IQ klinis. Tes resmi memerlukan norma populasi dan pengawasan terstandar.</p>':''}
         <span class="result-session">${operations[state.operation].label} · ${levels[state.difficulty].label}</span>
         ${state.operation==='aimath'?'<button class="reference-button" id="course-back">Lanjut ke materi</button>':''}<button class="primary-button" id="again"><span>Latihan lagi</span><span class="button-arrow">${svg('refresh', 20)}</span></button>
         <button class="text-button" id="home">${svg('back', 16)} Kembali ke beranda</button>
@@ -659,7 +677,8 @@ document.addEventListener('click', event => {
   else if (button.id === 'show-guide') showGuide();
   else if (button.id === 'show-reference') state.operation==='aimath'?showLesson(state.aiTopic):showReference();
   else if (button.id==='iq-back') showIQMenu();
-  else if (button.dataset.iqTopic) {state.iqTopic=button.dataset.iqTopic;showSetup('iq');}
+  else if (button.id==='start-iq-test') {state.iqTest=true;state.operation='iq';state.difficulty='sedang';start();}
+  else if (button.dataset.iqTopic) {state.iqTest=false;state.iqTopic=button.dataset.iqTopic;showSetup('iq');}
   else if (button.dataset.lesson) showLesson(button.dataset.lesson);
   else if (button.id==='lesson-challenge') showSetup('aimath');
   else if (button.id==='course-back') showCourse();

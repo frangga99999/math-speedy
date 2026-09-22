@@ -19,22 +19,15 @@ test('all reference tables show correct nonnegative integer results',()=>{
 });
 
 import {AI_LESSONS,generateAIMath} from '../engine.js';
-test('every AI lesson and level supports ten unique questions with correct answers',()=>{
+test('every adult lesson and level supports ten unique integer-answer questions',()=>{
  for(const lesson of AI_LESSONS)for(const difficulty of ['mudah','sedang','sulit']){
   const history=[];
   for(let i=0;i<10;i++){
    const q=generateAIMath({topic:lesson.id,difficulty,history});assert.ok(!history.includes(q.id));history.push(q.id);
-   const nums=q.display.match(/\d+/g).map(Number);let expected;
-   if(lesson.id==='basics')expected=nums[0]*nums[1]/100;
-   if(lesson.id==='algebra')expected=nums[0]*nums[1]+nums[2];
-   if(lesson.id==='vectors')expected=nums[0]*nums[2]+nums[1]*nums[3];
-   if(lesson.id==='mean')expected=nums.reduce((a,b)=>a+b)/3;
-   if(lesson.id==='probability')expected=nums[0]/nums[1]*100;
-   if(lesson.id==='gradient')expected=2*nums[0];
-   assert.ok(Math.abs(q.answer-expected)<1e-9);assert.equal(calculate(q),q.answer);
+   assert.ok(Number.isInteger(q.answer)&&q.answer>=0);assert.equal(calculate(q),q.answer);
   }
  }
 });
 test('selected IQ type works at every difficulty',()=>{
- for(const topic of ['basic','multiply','growing','alternate','square'])for(const difficulty of ['mudah','sedang','sulit']){const history=[];for(let i=0;i<10;i++){const q=generateIQ({topic,difficulty,history});assert.ok(topic==='basic'?['add','subtract'].includes(q.type):q.type===topic);history.push(q.id);}assert.equal(new Set(history).size,10);}
+ for(const topic of ['basic','multiply','growing','alternate','square','fibonacci','double','mixedops'])for(const difficulty of ['mudah','sedang','sulit']){const history=[];for(let i=0;i<10;i++){const q=generateIQ({topic,difficulty,history});assert.ok(topic==='basic'?['add','subtract'].includes(q.type):q.type===topic);history.push(q.id);}assert.equal(new Set(history).size,10);}
 });

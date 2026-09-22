@@ -8,13 +8,13 @@ Aplikasi latihan hitung pribadi: empat operasi, tiga tingkat kesulitan, 10 soal,
 npm start
 ```
 
-Buka **http://localhost:3000** dan masukkan kunci dari file `.private-access` dalam folder proyek. File tersebut dibuat otomatis dengan izin `0600`, tidak dilayani melalui HTTP, dan diabaikan Git. Jangan bagikan kunci ini. Server hanya mendengarkan di `127.0.0.1`, sehingga tidak tersedia langsung dari internet atau perangkat lain.
+Buka alamat lokal yang dicetak terminal dan masukkan kunci dari file `access-key-math.txt`. Ubah isi file melalui editor teks atau terminal, lalu restart server. File berizin `0600`, tidak dilayani melalui HTTP, dan diabaikan Git.
 
-Aplikasi, aset, dan API memerlukan cookie pemilik `HttpOnly; SameSite=Strict`. Sesi berlaku maksimal delapan jam; restart server mengakhiri semua sesi. **Pengaturan AI VPS → Kunci aplikasi** mengakhiri sesi browser saat ini. Host selain localhost/127.0.0.1 dan POST dari origin berbeda ditolak. Percobaan kunci salah dibatasi. Orang yang memakai akun sistem operasi atau browser yang sudah terbuka tetap dapat mengaksesnya; ini bukan isolasi dari administrator komputer.
+Aplikasi hanya mendengarkan di `127.0.0.1`, menolak host asing, membatasi percobaan login, dan memakai cookie sesi `HttpOnly; SameSite=Strict` selama delapan jam.
 
 Jalankan lewat server ini, bukan membuka `index.html` langsung atau server statis lain. Untuk akses ponsel, diperlukan konfigurasi jaringan privat dan autentikasi yang sesuai; versi ini tetap localhost saja.
 
-## AI VPS opsional
+## Asisten Belajar dengan VPS opsional
 
 Generator bawaan berjalan lokal tanpa jaringan. Koneksi OpenRouter telah diganti dengan endpoint VPS pribadi yang kompatibel dengan OpenAI Chat Completions.
 
@@ -23,11 +23,11 @@ Isi `.env` berdasarkan `.env.example`:
 ```dotenv
 PORT=3000
 VPS_AI_BASE_URL=https://alamat-vps-anda/v1
-VPS_AI_MODEL=nama-model-anda
+VPS_AI_MODEL=VPS-Combo-gue
 VPS_AI_KEY_FILE=/lokasi/file-kunci-pribadi
 ```
 
-Gunakan base URL persis seperti layanan model Anda; aplikasi menambahkan `/chat/completions`. Untuk layanan tanpa API key, kosongkan `VPS_AI_KEY_FILE`. Alternatifnya, berikan `VPS_AI_API_KEY` melalui environment. Simpan kunci dalam file lokal berizin `0600`. Restart server setelah mengubah konfigurasi, lalu buka **Pengaturan AI VPS → Uji koneksi VPS**. Tombol ini meminta satu soal sungguhan, memvalidasi hasil, dan menampilkan keberhasilan/kegagalan. Nama model ditampilkan, API key tidak dikirim ke browser.
+Gunakan base URL persis seperti layanan model Anda; aplikasi menambahkan `/chat/completions`. Model bawaan adalah `VPS-Combo-gue`. Simpan kunci API di file lokal berizin `0600`. Restart server setelah mengubah konfigurasi, lalu buka **Asisten Belajar → Uji model**.
 
 Permintaan memiliki timeout 15 detik. Soal AI harus memenuhi operasi, level, pembagian bulat, dan tidak mengulang pasangan angka. Respons gagal atau tidak valid dialihkan ke soal bawaan dengan pemberitahuan. Konfigurasi endpoint/model VPS nyata masih diperlukan sebelum integrasi langsung dapat diverifikasi.
 
@@ -35,7 +35,7 @@ Permintaan memiliki timeout 15 detik. Soal AI harus memenuhi operasi, level, pem
 
 - Home mengikuti panel melengkung, gradien biru, font lokal, dan tombol kaca dari Figma node `2004:164`, dengan empat operasi yang sudah berfungsi.
 - Dashboard menampilkan target harian 10 soal, akurasi, jumlah jawaban, sesi tuntas, dan rentetan hari aktif.
-- Bagian bawah berisi grafik tujuh hari, akses AI VPS, serta tiga sesi terakhir yang dapat dipilih untuk mengulang pengaturan latihan.
+- Bagian bawah berisi grafik tujuh hari, akses Asisten Belajar, serta tiga sesi terakhir yang dapat dipilih untuk mengulang latihan.
 - Progres tersimpan di localStorage perangkat ini, maksimal 500 sesi. Sesi yang dihentikan tetap menghitung jawaban tetapi tidak dihitung sebagai sesi tuntas. Sesi tanpa jawaban tidak disimpan.
 - Challenge memakai aset Figma lokal dari node `2002:2`, keypad interaktif, tombol tutup, dan konfirmasi sebelum menyerah/keluar. Timer berhenti saat dialog terbuka, AI menyiapkan soal, atau feedback ditampilkan.
 - Sesi tuntas mendapat animasi medali, confetti, dan elemen hasil yang masuk bertahap. Preferensi reduced motion dihormati. Tidak ada font/analitik pihak ketiga pada halaman aplikasi.
@@ -57,7 +57,8 @@ Pilih salah satu operasi lalu **Tabel penjumlahan/pengurangan/perkalian/pembagia
 ## Pilihan IQ, matematika AI, dan dashboard visual
 
 - IQ: pilih Campuran, Tambah & kurang, Perkalian, Selisih bertingkat, Bergantian, atau Kuadrat dahulu, kemudian pilih level. Tombol Ganti jenis pola kembali ke pilihan jenis.
-- Matematika AI: lima materi berurutan (fungsi/bobot, vektor, rata-rata, peluang, gradien). Setiap materi memiliki penjelasan, rumus, contoh, pilihan level, dan sepuluh soal lokal. Sesi tuntas dengan minimal tujuh jawaban benar menandai materi selesai; progres materi disimpan bersama riwayat sesi. Materi dapat diulang atau dijelajahi langsung. Kursus ini tidak memerlukan model VPS.
+- Jalur matematika dewasa mencakup nilai tempat, strategi hitung, pecahan, desimal, rasio, uang, ukuran, persen, aljabar, data, peluang, vektor, gradien, dan estimasi. Urutan dan penyajiannya memakai representasi visual, worked examples, strategi lentur, serta refleksi jawaban.
+- Tes penalaran meminta `VPS-Combo-gue` membuat soal unik untuk setiap langkah. Hasilnya adalah indeks latihan 0–100, bukan skor IQ klinis atau diagnosis.
 - Dashboard: bola progres kaca, orbit, pantulan, dan simbol mengambang berjalan berulang. Tombol jeda mengontrol animasi; reduced motion mematikannya.
 - 24 tes otomatis; uji browser menyelesaikan materi Fungsi & bobot hingga status 1/5 tuntas.
 
