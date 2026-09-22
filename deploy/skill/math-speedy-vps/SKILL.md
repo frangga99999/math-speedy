@@ -26,6 +26,8 @@ UI berbahasa Indonesia. Soal bisa dibuat mesin bawaan (`engine.js`) atau oleh AI
 | Kunci akses | `~/math-speedy/access-key-math.txt` |
 | AI | 9router lokal `http://127.0.0.1:20128/v1`, model `VPS-Combo-gue`, **WAJIB `stream:false`** |
 | Log | `journalctl --user -u mathspeedy.service` (app) atau `-u caddy.service` (TLS) |
+| Endpoint AI | `/api/challenge` (soal), `/api/explanation` (Asisten Belajar + visual), `/api/iq-test` (Tes penalaran adaptif) |
+| Versi | **satu versi saja**: kode di `main`, deploy ke VPS, mirror GitHub Pages sudah dimatikan |
 
 Arsitektur: pengunjung -> Caddy `:8788` (TLS) -> app `127.0.0.1:8791`.
 Port 80/443 **tertutup** di security group Tencent, jadi sertifikat diambil lewat
@@ -69,3 +71,15 @@ commit, atau tempat lain.
   **tanpa email** — biarkan begitu.
 - Port **8790 dipakai NumQuest**; app Math Speedy memakai **8791**.
 - Jangan taruh berkas log di dalam folder aplikasi.
+- **`max_tokens` endpoint AI jangan diturunkan.** `VPS-Combo-gue` bisa memakai
+  ~440 token untuk penalaran internal, jadi jatah 350 membuat isi balasan kosong
+  (`Unexpected end of JSON input`). `/api/iq-test` memakai 900.
+- Kegagalan model **tidak** boleh menghentikan sesi: `/api/iq-test` mengirim soal
+  bawaan (`fallback:true`) dan UI memberi tahu pengguna. Pola yang sama dipakai
+  `/api/challenge`.
+- Kunci akses dibuat **otomatis** (mode 600) bila `access-key-math.txt` hilang.
+  Kalau tiba-tiba kunci lama ditolak, cek dengan `show-key`.
+- `HOST` dan `ALLOWED_HOSTS` dibaca dari `.env` — nilai di VPS:
+  `HOST=127.0.0.1` dan `ALLOWED_HOSTS` memuat `mathspeedy.duckdns.org`.
+- **Rahasia tidak pernah masuk repo**: `access-key-math.txt`, `.env`,
+  `.vps-ai-key` ada di `.gitignore`. Kunci lokal Mac dan VPS harus sama.
