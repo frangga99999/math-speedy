@@ -4,6 +4,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {randomBytes,timingSafeEqual} from 'node:crypto';
 import {generateChallenge, generateIQ, isQuestionValid, isSettingsValid, isDigitsValid, digitsRange, SYMBOLS, LIMITS, MINIMUMS} from './engine.js';
+import {skillForQuestion,SKILL_DEFINITIONS} from './skills.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const env = await fs.readFile(path.join(root, '.env'), 'utf8').catch(() => '');
@@ -16,7 +17,7 @@ const hostBind = process.env.HOST || '127.0.0.1';
 // Daftar host yang boleh mengakses (dipisah koma) lewat ALLOWED_HOSTS.
 // Di VPS wajib memuat mathspeedy.duckdns.org supaya Caddy tidak ditolak 403.
 const allowedHosts = new Set((process.env.ALLOWED_HOSTS || 'localhost,127.0.0.1').split(',').map(x => x.trim().toLowerCase()).filter(Boolean));
-const allowedFiles = new Set(['index.html','style.css','challenge.css','home.css','app.js','engine.js','progress.js']);
+const allowedFiles = new Set(['index.html','style.css','challenge.css','home.css','app.js','engine.js','progress.js','skills.js','mastery.js']);
 const mime = {'.html':'text/html; charset=utf-8','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.woff2':'font/woff2','.ttf':'font/ttf'};
 const keyFile = process.env.VPS_AI_KEY_FILE;
 const vpsKey = keyFile ? (await fs.readFile(path.resolve(root, keyFile), 'utf8')).trim() : process.env.VPS_AI_API_KEY;
@@ -79,7 +80,9 @@ async function generateAI(settings, config) {
   if (typeof content !== 'string') throw new Error('Invalid AI response');
   const question = JSON.parse(content.trim().replace(/^```(?:json)?\s*|\s*```$/g, ''));
   if (!isQuestionValid(question, operation, difficulty, history, digits)) throw new Error('Invalid question');
-  return {a:question.a,b:question.b,operation,symbol:SYMBOLS[operation],source:'ai'};
+  const result={a:question.a,b:question.b,operation,symbol:SYMBOLS[operation],source:'ai'};
+  const skillId=skillForQuestion(result);
+  return {...result,skillId,strategyId:SKILL_DEFINITIONS[skillId]?.strategyId};
 }
 
 function localExplanation(q) {

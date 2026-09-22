@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { generateChallenge, isQuestionValid, calculate, SYMBOLS, LIMITS, MINIMUMS, digitsRange, isDigitsValid } from '../engine.js';
+import {ADDITION_SKILLS, classifyAdditionSkill} from '../skills.js';
 
 for (const operation of Object.keys(SYMBOLS)) {
   for (const difficulty of Object.keys(LIMITS)) {
@@ -63,4 +64,32 @@ test('digit validation rejects invalid values', () => {
   assert.equal(isDigitsValid(undefined), true);
   assert.throws(() => digitsRange(6));
   assert.throws(() => digitsRange(0));
+});
+
+test('addition questions are tagged with deterministic micro-skills', () => {
+  assert.equal(classifyAdditionSkill(3, 4), ADDITION_SKILLS.BASIC);
+  assert.equal(classifyAdditionSkill(8, 2), ADDITION_SKILLS.BOND_10);
+  assert.equal(classifyAdditionSkill(8, 7), ADDITION_SKILLS.CROSS_10);
+  assert.equal(classifyAdditionSkill(20, 30), ADDITION_SKILLS.TENS);
+  assert.equal(classifyAdditionSkill(21, 34), ADDITION_SKILLS.TWO_DIGIT_NO_REGROUP);
+  assert.equal(classifyAdditionSkill(48, 37), ADDITION_SKILLS.TWO_DIGIT_REGROUP);
+  assert.equal(classifyAdditionSkill(125, 25), ADDITION_SKILLS.LARGE);
+  for (let i = 0; i < 200; i++) {
+    const question = generateChallenge({operation:'tambah', difficulty:'sedang'});
+    assert.ok(Object.values(ADDITION_SKILLS).includes(question.skillId));
+    assert.ok(question.strategyId);
+  }
+});
+
+test('targeted addition generation stays inside the requested micro-skill', () => {
+  const levels={
+    [ADDITION_SKILLS.BASIC]:'mudah',[ADDITION_SKILLS.BOND_10]:'mudah',[ADDITION_SKILLS.CROSS_10]:'mudah',
+    [ADDITION_SKILLS.TENS]:'sedang',[ADDITION_SKILLS.TWO_DIGIT_NO_REGROUP]:'sedang',[ADDITION_SKILLS.TWO_DIGIT_REGROUP]:'sedang',[ADDITION_SKILLS.LARGE]:'sulit'
+  };
+  for(const [skill,difficulty] of Object.entries(levels))for(let i=0;i<1000;i++){
+    const question=generateChallenge({operation:'tambah',difficulty,skill});
+    assert.equal(question.skillId,skill);
+    assert.equal(classifyAdditionSkill(question.a,question.b),skill);
+  }
+  assert.throws(()=>generateChallenge({operation:'tambah',difficulty:'mudah',skill:'UNKNOWN'}));
 });

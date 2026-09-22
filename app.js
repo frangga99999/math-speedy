@@ -1,9 +1,11 @@
 import { generateChallenge, generateIQ, generateAIMath, AI_LESSONS, referenceRows, calculate, hintFor } from './engine.js';
 import { readProgress, saveSession, summarizeProgress } from './progress.js';
+import {findWeakSkill,readAttempts,saveAttempt} from './mastery.js';
 
 const app = document.querySelector('#app');
 const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
 const TOTAL = 10;
+const sessionTotal = () => state.targetSkill ? 5 : TOTAL;
 const operations = {
   aimath: {symbol:'∇',label:'Asisten Belajar',short:'Konsep mesin'},
   iq: {symbol:'⋯', label:'Latihan IQ', short:'Pola angka'},
@@ -52,7 +54,7 @@ const GUIDE = [
     example: 'Fungsi y = w × x + b mengubah input x menjadi prediksi y.',
     tip: 'Buka Asisten Belajar untuk memulai dari nol.' }
 ];
-const state = { screen: 'home', operation: 'kali', difficulty: 'mudah', question: null, previous: '', index: 0, score: 0, lives: 5, input: '', loading: false, feedback: '', error: '', answered: 0, engine: 'default', digits: null, history: [], remaining: 80 };
+const state = { screen: 'home', operation: 'kali', difficulty: 'mudah', question: null, previous: '', index: 0, score: 0, lives: 5, input: '', loading: false, feedback: '', error: '', answered: 0, engine: 'default', digits: null, history: [], remaining: 80, questionStartedAt:0, hintUsed:false, targetSkill:null, targetTitle:'' };
 let requestId = 0;
 let requestController;
 let nextQuestionTimer;
@@ -100,6 +102,7 @@ function goHome() {
   stageObserver?.disconnect();
   requestController?.abort();
   requestId++;
+  state.targetSkill=null;state.targetTitle='';
   state.screen = 'home';
   renderHome();
   enterScreen();
@@ -171,6 +174,7 @@ function digitOptionsMarkup() {
 
 function showSetup(operation = state.operation) {
   document.querySelectorAll('dialog[open]').forEach(d=>d.close());
+  state.targetSkill=null;state.targetTitle='';
   state.operation = operation;
   const dialog = openDialog(`<button class="dialog-close" data-close aria-label="Tutup pengaturan">${svg('close')}</button><span class="eyebrow">10 SOAL · 80 DETIK · 5 NYAWA</span><h2>${operation==='iq'?IQ_TOPICS[state.iqTopic]:operation==='aimath'?AI_LESSONS.find(x=>x.id===state.aiTopic).title:operations[operation].label}</h2>
     <div class="difficulty-tabs" role="group" aria-label="Pilih tingkat kesulitan" style="--selected:${Object.keys(levels).indexOf(state.difficulty)}"><span class="difficulty-indicator" aria-hidden="true"></span>${Object.entries(levels).map(([key, level], i) => `<button class="difficulty" data-difficulty="${key}">${bars(i + 1)}${level.label}</button>`).join('')}</div>
@@ -222,7 +226,7 @@ function renderChallenge() {
           <img class="figma-panel figma-panel-front" src="./assets/figma-panel-front.svg" alt="">
           <button class="challenge-close" id="exit-challenge" aria-label="Tutup latihan">${svg('close', 19)}</button>
           <header class="figma-status">
-            <div class="figma-timing"><span id="timer" aria-label="Waktu tersisa">01:20</span><div class="figma-timer-track" role="progressbar" aria-label="Sisa waktu" aria-valuemin="0" aria-valuemax="80" aria-valuenow="80"><i></i><b></b></div></div>
+            <div class="figma-timing"><span id="timer" aria-label="${state.targetSkill?'Latihan fokus tanpa timer':'Waktu tersisa'}">${state.targetSkill?'FOKUS':'01:20'}</span><div class="figma-timer-track" role="progressbar" aria-label="${state.targetSkill?'Latihan fokus':'Sisa waktu'}" aria-valuemin="0" aria-valuemax="80" aria-valuenow="80"><i></i><b></b></div></div>
             <div class="figma-lives" aria-label="5 nyawa tersisa">${Array.from({length:5}, () => '<i class="alive"></i>').join('')}</div>
           </header>
           <div class="figma-question">
@@ -257,7 +261,7 @@ function renderWrittenChallenge() {
     <section class="written-challenge ${isAI ? 'written-ai' : 'written-iq'}" aria-label="${isAI ? 'Tantangan matematika AI' : 'Latihan pola angka'}">
       <header class="written-header">
         <button class="written-icon-button" id="exit-challenge" aria-label="Tutup latihan">${svg('close', 20)}</button>
-        <div class="written-progress-copy"><span id="written-step">Soal 1 dari ${TOTAL}</span><strong>${escapeHtml(contextLabel)}</strong></div>
+        <div class="written-progress-copy"><span id="written-step">Soal 1 dari ${sessionTotal()}</span><strong>${escapeHtml(contextLabel)}</strong></div>
         <div class="written-lives" aria-label="5 nyawa tersisa">${Array.from({length:5}, () => '<i class="alive"></i>').join('')}</div>
       </header>
       <div class="written-timer"><span id="timer" aria-label="Waktu tersisa">01:20</span><div class="written-timer-track figma-timer-track" role="progressbar" aria-label="Sisa waktu" aria-valuemin="0" aria-valuemax="80" aria-valuenow="80"><i></i><b></b></div></div>
@@ -303,11 +307,11 @@ function updateQuestion() {
   equation.textContent = q ? (q.operation === 'aimath' ? q.display : q.operation === 'iq' ? `${q.sequence.join(' · ')} · ?` : `${q.a} ${q.symbol} ${q.b}`) : '…';
   equation.classList.toggle('iq-equation', ['iq','aimath'].includes(state.operation));
   equation.setAttribute('aria-label', q ? q.operation === 'aimath' ? `${q.prompt} ${q.display}` : q.operation === 'iq' ? `Lanjutkan pola: ${q.sequence.join(', ')}, tanda tanya` : `${q.a} ${operations[q.operation].label} ${q.b}` : 'Menyiapkan soal');
-  app.querySelector('#question-prompt').textContent = state.loading ? 'Menyiapkan soal…' : state.operation === 'aimath' ? (q?.prompt || 'Asisten Belajar') : state.operation === 'iq' ? 'Angka berikutnya?' : 'Berapa hasilnya?';
+  app.querySelector('#question-prompt').textContent = state.loading ? 'Menyiapkan soal…' : state.targetSkill ? `Fokus · ${state.targetTitle}` : state.operation === 'aimath' ? (q?.prompt || 'Asisten Belajar') : state.operation === 'iq' ? 'Angka berikutnya?' : 'Berapa hasilnya?';
   app.querySelector('.figma-stage, .written-challenge')?.classList.remove('is-correct', 'is-wrong');
-  app.querySelector('#feedback').textContent = `Soal ${state.index + 1} dari ${TOTAL}. ${state.score} benar.`;
+  app.querySelector('#feedback').textContent = `Soal ${state.index + 1} dari ${sessionTotal()}. ${state.score} benar.`;
   const writtenStep = app.querySelector('#written-step');
-  if (writtenStep) writtenStep.textContent = `Soal ${state.index + 1} dari ${TOTAL}`;
+  if (writtenStep) writtenStep.textContent = `Soal ${state.index + 1} dari ${sessionTotal()}`;
   updateAnswer();
   updateKeypad();
   if (q) {
@@ -337,6 +341,7 @@ function updateAnswer() {
 
 function startClock() {
   clearInterval(sessionClock);
+  if(state.targetSkill)return;
   clockTick = performance.now();
   sessionClock = setInterval(() => {
     const now = performance.now();
@@ -387,9 +392,12 @@ function press(key) {
       return;
     }
     const correct = Number(state.input) === calculate(state.question);
+    if (state.question.skillId) {
+      try { saveAttempt(localStorage, {sessionId:state.sessionId,operation:state.question.operation,difficulty:state.difficulty,skillId:state.question.skillId,strategyId:state.question.strategyId,a:state.question.a,b:state.question.b,userAnswer:Number(state.input),correctAnswer:calculate(state.question),correct,hintUsed:state.hintUsed,responseMs:Math.max(0,Math.round(performance.now()-state.questionStartedAt)),timestamp:new Date().toISOString()}); } catch {}
+    }
     state.feedback = correct ? 'correct' : 'wrong';
     state.answered++;
-    if (correct) state.score++; else state.lives--;
+    if (correct) state.score++; else if(!state.targetSkill) state.lives--;
     showFeedback(correct);
     nextQuestionTimer = setTimeout(advanceQuestion, correct ? 900 : 1600);
     return;
@@ -407,7 +415,7 @@ function advanceQuestion() {
     return;
   }
   if (state.lives <= 0) finishSession('lives');
-  else if (state.answered >= TOTAL) finishSession('completed');
+  else if (state.answered >= sessionTotal()) finishSession('completed');
   else { state.index++; state.input = ''; state.feedback = ''; loadQuestion(); }
 }
 
@@ -427,7 +435,7 @@ function showFeedback(correct) {
   const lives = app.querySelector('.figma-lives, .written-lives');
   lives.setAttribute('aria-label', `${state.lives} nyawa tersisa`);
   if (!correct) {
-    lives.children[state.lives].classList.remove('alive');
+    if(!state.targetSkill)lives.children[state.lives]?.classList.remove('alive');
     animate(app.querySelector('#answer, #written-answer'), [0,-6,6,-4,0].map(x => ({transform:`translateX(${x}px)`})), {duration:300});
   } else burst(app.querySelector('.success-burst'));
   updateKeypad();
@@ -458,7 +466,7 @@ async function loadQuestion() {
   state.question = null;
   state.error = '';
   updateQuestion();
-  const settings = {operation:state.operation, difficulty:state.difficulty, history:state.history, digits:state.operation === 'tambah' ? state.digits : null};
+  const settings = {operation:state.operation, difficulty:state.difficulty, history:state.history, digits:state.operation === 'tambah' ? state.digits : null, skill:state.targetSkill};
   let question;
   if (state.operation === 'iq' && state.iqTest) {
     try { const response=await fetch('/api/iq-test',{method:'POST',signal:requestController.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({difficulty:state.difficulty,history:state.history})}); if(response.status===401){location.reload();return;} const data=await response.json();if(!response.ok)throw new Error(data.error);question=data;if(question.fallback)showToast('AI belum merespons. Soal bawaan digunakan.'); }
@@ -485,13 +493,15 @@ async function loadQuestion() {
   state.history.push(question.id || `${question.a}:${question.b}`);
   state.loading = false;
   clockTick = performance.now();
+  state.questionStartedAt = performance.now();
+  state.hintUsed = false;
   updateQuestion();
 }
 
 function start() {
   document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
   clearTimeout(nextQuestionTimer);
-  Object.assign(state, {sessionId:crypto.randomUUID(),reason:null,screen:'challenge',index:0,score:0,answered:0,lives:5,input:'',feedback:'',previous:'',history:[],remaining:80});
+  Object.assign(state, {sessionId:crypto.randomUUID(),reason:null,screen:'challenge',index:0,score:0,answered:0,lives:5,input:'',feedback:'',previous:'',history:[],remaining:80,questionStartedAt:0,hintUsed:false});
   renderChallenge();
   enterScreen();
   loadQuestion();
@@ -533,6 +543,7 @@ function explanationVisual(data) {
 }
 
 async function showHelp() {
+  state.hintUsed = true;
   const dialog=openDialog(`<button class="dialog-close" data-close aria-label="Tutup Asisten Belajar">${svg('close')}</button><span class="eyebrow">ASISTEN BELAJAR</span><div class="explanation-loading" role="status"><i></i><i></i><i></i><span>Menyusun visual…</span></div>`);
   dialog.classList.add('explanation-dialog');
   try {
@@ -583,8 +594,10 @@ async function checkAccount() {
 function renderResult() {
   const accuracy = state.answered ? Math.round(state.score / state.answered * 100) : 0;
   const completed = state.reason === 'completed';
-  const title = completed ? (state.score === TOTAL ? 'Sempurna!' : 'Tantangan selesai!') : state.reason === 'timeout' ? 'Waktu habis' : state.reason === 'lives' ? 'Coba lagi, yuk.' : 'Latihan diakhiri';
-  const reasoningIndex=Math.round(accuracy*.8+Math.min(state.answered/TOTAL,1)*20);
+  const title = completed ? (state.targetSkill ? (state.score>=4?'Nice, mulai kebaca.':'Masih agak goyang.') : state.score === sessionTotal() ? 'Sempurna!' : 'Tantangan selesai!') : state.reason === 'timeout' ? 'Waktu habis' : state.reason === 'lives' ? 'Coba lagi, yuk.' : 'Latihan diakhiri';
+  const reasoningIndex=Math.round(accuracy*.8+Math.min(state.answered/sessionTotal(),1)*20);
+  let learningInsight=null;
+  if(state.operation==='tambah')try{learningInsight=findWeakSkill(readAttempts(localStorage),state.sessionId);}catch{}
   app.innerHTML = `
     <section class="result-screen ${completed ? 'result-completed' : ''}">
       <header class="result-header"><a href="#home" class="brand wordmark" aria-label="Math Speedy, beranda">SpeedyMath</a><button class="result-close" id="result-home" aria-label="Kembali ke beranda">${svg('close')}</button></header>
@@ -593,10 +606,11 @@ function renderResult() {
         <span class="eyebrow">${completed ? 'SESI TUNTAS' : `${state.answered} SOAL DIKERJAKAN`}</span>
         <h1 tabindex="-1">${title}</h1>
         <p>${completed ? 'Satu latihan lagi. Satu langkah maju.' : 'Progresmu tetap berarti. Lanjutkan lagi kapan saja.'}</p>
-        <div class="result-card"><span>${state.iqTest?'INDEKS PENALARAN':'JAWABAN BENAR'}</span><strong><b id="result-score">${state.iqTest?reasoningIndex:state.score}</b><small>${state.iqTest?' / 100':` / ${state.answered}`}</small></strong><div class="result-stats"><span><b>${accuracy}%</b> Akurasi</span><span><b>${state.answered}/${TOTAL}</b> Soal dikerjakan</span></div></div>
+        <div class="result-card"><span>${state.iqTest?'INDEKS PENALARAN':'JAWABAN BENAR'}</span><strong><b id="result-score">${state.iqTest?reasoningIndex:state.score}</b><small>${state.iqTest?' / 100':` / ${state.answered}`}</small></strong><div class="result-stats"><span><b>${accuracy}%</b> Akurasi</span><span><b>${state.answered}/${sessionTotal()}</b> Soal dikerjakan</span></div></div>
         ${state.iqTest?'<p class="iq-result-note">Skor latihan, bukan skor IQ klinis. Tes resmi memerlukan norma populasi dan pengawasan terstandar.</p>':''}
-        <span class="result-session">${operations[state.operation].label} · ${levels[state.difficulty].label}</span>
-        ${state.operation==='aimath'?'<button class="reference-button" id="course-back">Lanjut ke materi</button>':''}<button class="primary-button" id="again"><span>Latihan lagi</span><span class="button-arrow">${svg('refresh', 20)}</span></button>
+        ${learningInsight&&!state.targetSkill?`<div class="result-insight"><span>YANG MASIH PERLU DIASAH</span><strong>${escapeHtml(learningInsight.title)}</strong><p>${learningInsight.errors} jawaban yang meleset punya pola yang sama.</p><button id="target-practice" data-skill="${learningInsight.skillId}" data-title="${escapeHtml(learningInsight.title)}">Latih 5 soal ${svg('arrow',16)}</button></div>`:''}
+        <span class="result-session">${operations[state.operation].label} · ${levels[state.difficulty].label}${state.targetSkill?' · Fokus':''}</span>
+        ${state.operation==='aimath'?'<button class="reference-button" id="course-back">Lanjut ke materi</button>':''}<button class="primary-button" id="again"><span>${state.targetSkill?'Ulang fokus':'Latihan lagi'}</span><span class="button-arrow">${svg('refresh', 20)}</span></button>
         <button class="text-button" id="home">${svg('back', 16)} Kembali ke beranda</button>
       </div><div class="completion-confetti" aria-hidden="true"></div>
     </section>`;
@@ -698,6 +712,7 @@ document.addEventListener('click', event => {
     updateHomeSelection();
     animate(document.querySelector('#level-hint'), [{opacity:0, transform:'translateY(4px)'}, {opacity:1, transform:'translateY(0)'}]);
   } else if (button.id === 'giveup') confirmExit();
+  else if (button.id === 'target-practice') {state.targetSkill=button.dataset.skill;state.targetTitle=button.dataset.title;state.operation='tambah';state.engine='default';start();}
   else if (button.id === 'written-help') showHelp();
   else if (button.id === 'clear-written') {
     state.input = '';
@@ -711,7 +726,8 @@ document.addEventListener('click', event => {
     updateHomeSelection();
     animate(document.querySelector('#level-hint'), [{opacity:0, transform:'translateY(4px)'}, {opacity:1, transform:'translateY(0)'}]);
   } else if (button.dataset.key) press(button.dataset.key);
-  else if (button.id === 'start' || button.id === 'again') start();
+  else if (button.id === 'start') {state.targetSkill=null;state.targetTitle='';start();}
+  else if (button.id === 'again') start();
 });
 
 app.addEventListener('pointerdown', event => {

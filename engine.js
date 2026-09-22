@@ -50,8 +50,9 @@ export function isQuestionValid(q, operation, difficulty, history = [], digits) 
 }
 
 const pools = new Map();
-export function generateChallenge({ operation, difficulty, history = [], previous = '', digits }, random = Math.random) {
+export function generateChallenge({ operation, difficulty, history = [], previous = '', digits, skill }, random = Math.random) {
   if (!isSettingsValid(operation, difficulty)) throw new Error('Pilihan latihan tidak valid.');
+  if (skill && (!Object.hasOwn(SKILL_DEFINITIONS,skill) || SKILL_DEFINITIONS[skill].operation !== operation)) throw new Error('Skill latihan tidak valid.');
   const ranged = operation === 'tambah' && digits != null;
   if (ranged) {
     // Random generation: digit ranges (up to 5 digits) are far too large to enumerate.
@@ -62,7 +63,10 @@ export function generateChallenge({ operation, difficulty, history = [], previou
     for (let attempt = 0; attempt < 500; attempt++) {
       const a = min + Math.floor(random() * size);
       const b = min + Math.floor(random() * size);
-      if (!excluded.has(`${a}:${b}`)) return { a, b, operation, symbol: SYMBOLS[operation], source: 'default' };
+      if (!excluded.has(`${a}:${b}`) && (!skill || skillForQuestion({a,b,operation})===skill)) {
+        const question = { a, b, operation, symbol: SYMBOLS[operation], source: 'default' };
+        return {...question, skillId: skillForQuestion(question), strategyId: SKILL_DEFINITIONS[skillForQuestion(question)]?.strategyId};
+      }
     }
     throw new Error('Semua soal pada digit ini telah selesai. Mulai sesi baru.');
   }
@@ -77,10 +81,11 @@ export function generateChallenge({ operation, difficulty, history = [], previou
     pools.set(key, pool);
   }
   const excluded = new Set([...history, previous]);
-  const available = pools.get(key).filter(q => !excluded.has(`${q.a}:${q.b}`));
+  const available = pools.get(key).filter(q => !excluded.has(`${q.a}:${q.b}`) && (!skill || skillForQuestion({...q,operation})===skill));
   if (!available.length) throw new Error('Semua soal pada level ini telah selesai. Mulai sesi baru.');
   const q = available[Math.min(available.length - 1, Math.max(0, Math.floor(random() * available.length)))];
-  return { ...q, operation, symbol: SYMBOLS[operation], source: 'default' };
+  const question = { ...q, operation, symbol: SYMBOLS[operation], source: 'default' };
+  return {...question, skillId: skillForQuestion(question), strategyId: SKILL_DEFINITIONS[skillForQuestion(question)]?.strategyId};
 }
 
 export function hintFor(q) {
@@ -171,3 +176,4 @@ export function generateAIMath({topic='algebra',difficulty='mudah',history=[]},r
   if(!pool.length)throw new Error('Semua soal selesai.');
   return pool[Math.min(pool.length-1,Math.max(0,Math.floor(random()*pool.length)))];
 }
+import {skillForQuestion, SKILL_DEFINITIONS} from './skills.js';
