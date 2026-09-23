@@ -34,7 +34,7 @@
 .figma-lives i { width:13px; height:13px; background:#4c3738; border-radius:20px; transition:background .25s; }
 .figma-lives i.alive { background:#de1215; }
 .figma-question { position:absolute; left:67px; top:98px; width:296px; display:flex; flex-direction:column; gap:24px; }
-.figma-question p { margin:0; width:296px; height:30px; font:600 24px/30px 'Plus Jakarta Sans'; white-space:nowrap; letter-spacing:0; }
+.figma-question p { margin:0; width:296px; min-height:30px; font:600 24px/1.3 'Plus Jakarta Sans'; white-space:normal; overflow-wrap:anywhere; letter-spacing:0; }
 .figma-question #equation { display:block; width:296px; height:43px; min-height:0; margin:0; font:600 34px/43px 'Plus Jakarta Sans'; text-align:center; letter-spacing:0; color:#00ad3a; }
 .figma-answer { position:absolute; left:40px; top:210px; width:350px; text-align:center; font:600 24px/32px 'Plus Jakarta Sans'; color:#fff; }
 .figma-keypad { position:absolute; top:318px; left:0; width:430px; padding:0 40px; display:grid; grid-template-columns:repeat(3,100px); gap:30px 25px; }
@@ -86,6 +86,9 @@
 }
 .written-challenge::before { content:''; position:absolute; inset:0; pointer-events:none; opacity:.22; background:radial-gradient(circle at 85% 12%,#8edfc845 0 2px,transparent 3px),radial-gradient(circle at 12% 73%,#c8f0df35 0 1px,transparent 2px); background-size:41px 41px,29px 29px; }
 .written-ai { --written-accent:#c6c2ff; background:linear-gradient(165deg,#1b1d28 0%,#253248 45%,#176b91 100%); }
+.written-story { --written-accent:#f4d4a8; background:linear-gradient(165deg,#231f18 0%,#3a2e1d 45%,#7a5423 100%); }
+.written-story #question-prompt { font-size:14px; line-height:1.7; color:#cfd8d3; }
+.written-story #equation { font:600 clamp(20px,6.4vw,28px)/1.5 'Plus Jakarta Sans'; letter-spacing:-.4px; }
 .written-header { position:relative; z-index:2; display:grid; grid-template-columns:48px 1fr auto; align-items:center; gap:13px; padding:max(16px,env(safe-area-inset-top)) 22px 11px; }
 .written-icon-button { display:grid; place-items:center; width:46px; height:46px; padding:0; border-radius:16px; border:1px solid #d5e9ed27; background:#d8edf00a; color:#dbe7ea; }
 .written-progress-copy { display:flex; flex-direction:column; gap:3px; min-width:0; }.written-progress-copy span { color:#a9bbc4; font-size:9px; letter-spacing:1px; }.written-progress-copy strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }

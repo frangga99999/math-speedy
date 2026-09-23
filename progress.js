@@ -1,5 +1,5 @@
 const KEY = 'math-speedy.progress.v1';
-const OPS = ['tambah', 'kurang', 'kali', 'bagi', 'iq', 'aimath'];
+const OPS = ['tambah', 'kurang', 'kali', 'bagi', 'campuran', 'iq', 'aimath', 'akar'];
 const LEVELS = ['mudah', 'sedang', 'sulit'];
 
 function validSession(s) {
@@ -52,7 +52,19 @@ export function summarizeProgress(sessions, now = new Date()) {
     return {operation, answered: count, accuracy: count ? Math.round(history.reduce((n, s) => n + s.score, 0) / count * 100) : null};
   });
   return {answered, score, accuracy: answered ? Math.round(score / answered * 100) : null,
-    completed: valid.filter(s => s.reason === 'completed').length, streak, days,
+    completed: valid.filter(s => s.reason === 'completed').length, sessions: valid.length, streak, days,
     today: days[6].answered, byOperation,
     recent: [...valid].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 3)};
+}
+
+// Kurva belajar: akurasi kumulatif setelah tiap sesi terakhir (terlama → terbaru).
+// Naik berarti makin akurat seiring latihan; turun berarti perlu fokus ulang.
+export function sessionTrend(sessions, now = new Date()) {
+  const valid = sessions.filter(validSession).filter(s => new Date(s.at) <= now)
+    .sort((a, b) => Date.parse(a.at) - Date.parse(b.at)).slice(-12);
+  let score = 0, answered = 0;
+  return valid.map(s => {
+    score += s.score; answered += s.answered;
+    return { at: s.at, operation: s.operation, accuracy: Math.round(score / answered * 100), answered };
+  });
 }

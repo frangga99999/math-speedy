@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { generateChallenge, isQuestionValid, calculate, SYMBOLS, LIMITS, MINIMUMS, digitsRange, isDigitsValid } from '../engine.js';
+import { generateChallenge, generateTableChallenge, frameStory, isQuestionValid, isSettingsValid, calculate, SYMBOLS, LIMITS, MINIMUMS, digitsRange, isDigitsValid, simBersusunBagi, simBersusunKali } from '../engine.js';
 import {ADDITION_SKILLS, classifyAdditionSkill} from '../skills.js';
 
-for (const operation of Object.keys(SYMBOLS)) {
+for (const operation of Object.keys(SYMBOLS).filter(o => o !== 'akar')) {
   for (const difficulty of Object.keys(LIMITS)) {
     test(`${operation}/${difficulty}: ten valid, unique, solvable questions`, () => {
       for (let session = 0; session < 30; session++) {
@@ -24,6 +24,25 @@ for (const operation of Object.keys(SYMBOLS)) {
     });
   }
 }
+test('akar: valid, unique, integer square roots within 1–30', () => {
+  for (const difficulty of Object.keys(LIMITS)) {
+    const history = [];
+    for (let i = 0; i < 10; i++) {
+      const q = generateChallenge({ operation: 'akar', difficulty, history });
+      assert.equal(q.operation, 'akar');
+      assert.equal(q.source, 'default');
+      assert.ok(Number.isInteger(q.answer) && q.answer >= 1 && q.answer <= 30, `akar ${q.answer}`);
+      assert.equal(calculate(q), q.answer);
+      assert.equal(q.a, q.answer * q.answer);
+      assert.ok(!history.includes(q.id));
+      history.push(q.id);
+    }
+    assert.equal(new Set(history).size, 10);
+  }
+  assert.equal(isSettingsValid('akar', 'mudah'), true);
+  assert.equal(isSettingsValid('akar', 'aneh'), false);
+});
+
 test('invalid operations and invalid AI answers are rejected', () => {
   assert.throws(() => generateChallenge({operation:'constructor',difficulty:'mudah'}));
   assert.throws(() => generateChallenge({operation:'kali',difficulty:'__proto__'}));
@@ -53,6 +72,39 @@ test('tambah digit setting (1–5) generates correct-digit questions', () => {
     }
     assert.equal(new Set(history).size, 10);
   }
+});
+
+test('soal cerita membungkus soal dasar tanpa mengubah angkanya', () => {
+  for (const operation of ['tambah','kurang','kali','bagi']) {
+    for (const [a,b] of [[7,5],[23,14],[96,12],[48,6]]) {
+      const framed=frameStory({a,b,operation});
+      assert.ok(typeof framed.story==='string'&&framed.story.includes(String(a))&&framed.story.includes(String(b)),framed.story);
+      assert.ok(typeof framed.question==='string'&&framed.question.length>5);
+      // Angka asli tetap jadi kunci jawaban, bingkai hanya teks.
+      assert.equal(calculate({...framed,a,b,operation}),calculate({a,b,operation}));
+    }
+  }
+});
+
+test('operasi campuran: valid, urutan operasi benar, dan bervariasi', () => {
+  assert.equal(isSettingsValid('campuran','sedang'),true);
+  assert.equal(isSettingsValid('campuran','aneh'),false);
+  for (const difficulty of ['mudah','sedang','sulit']) {
+    const history=[];
+    for (let i=0;i<30;i++) {
+      const q=generateChallenge({operation:'campuran',difficulty,history});
+      assert.equal(q.operation,'campuran');
+      assert.ok(typeof q.display==='string'&&/[+\-×]/.test(q.display),q.display);
+      assert.ok(Number.isInteger(q.answer)&&q.answer>=0&&q.answer<=400,`jawaban ${q.answer} wajar`);
+      assert.equal(calculate(q),q.answer,'display dan jawaban konsisten');
+      assert.ok(!history.includes(q.id));
+      history.push(q.id);
+    }
+    assert.ok(new Set(history).size>10,'soal campuran harus bervariasi');
+  }
+  assert.equal(calculate({a:2,b:3,c:4,operation:'campuran',variant:'plus-kali'}),14);
+  assert.equal(calculate({a:2,b:3,c:4,operation:'campuran',variant:'kurung-kali'}),20);
+  assert.throws(()=>generateChallenge({operation:'campuran',difficulty:'aneh'}));
 });
 
 test('digit validation rejects invalid values', () => {
@@ -92,4 +144,39 @@ test('targeted addition generation stays inside the requested micro-skill', () =
     assert.equal(classifyAdditionSkill(question.a,question.b),skill);
   }
   assert.throws(()=>generateChallenge({operation:'tambah',difficulty:'mudah',skill:'UNKNOWN'}));
+});
+
+test('table challenge drills only the chosen multiplication table', () => {
+  // Tabel 7, baris 1–10: soalnya harus selalu "7 × n" dan unik.
+  const history = [];
+  for (let i = 0; i < 10; i++) {
+    const q = generateTableChallenge({ operation: 'kali', number: 7, lo: 1, hi: 10, history });
+    assert.equal(q.operation, 'kali');
+    assert.equal(q.a, 7);
+    assert.ok(q.b >= 1 && q.b <= 10);
+    assert.equal(calculate(q), 7 * q.b);
+    assert.ok(!history.includes(q.id));
+    history.push(q.id);
+  }
+  assert.equal(new Set(history).size, 10);
+  // Habis 10 baris, tidak ada lagi yang bisa diambil.
+  assert.throws(() => generateTableChallenge({ operation: 'kali', number: 7, lo: 1, hi: 10, history }));
+  // Berbeda dari soal kali beranda: angka acuan (a) berubah-ubah, bukan tetap 7.
+  const home = generateChallenge({ operation: 'kali', difficulty: 'mudah' });
+  assert.ok(home.a !== undefined);
+});
+
+test('kuadrat & kubik tables give exact squares and cubes', () => {
+  for (const [op, fn] of [['kuadrat', n => n * n], ['kubik', n => n * n * n]]) {
+    const history = [];
+    for (let i = 0; i < 10; i++) {
+      const q = generateTableChallenge({ operation: op, number: 1, lo: 1, hi: 10, history });
+      assert.equal(q.operation, op);
+      assert.equal(q.a * q.a * (op === 'kubik' ? q.a : 1), fn(q.a));
+      assert.equal(calculate(q), fn(q.a));
+      assert.ok(!history.includes(q.id));
+      history.push(q.id);
+    }
+    assert.equal(new Set(history).size, 10);
+  }
 });

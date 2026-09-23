@@ -24,9 +24,9 @@ UI berbahasa Indonesia. Soal bisa dibuat mesin bawaan (`engine.js`) atau oleh AI
 | HTTPS | Caddy (`systemctl --user caddy.service`), sertifikat Let's Encrypt via **DNS-01 DuckDNS**, auto-renew |
 | Konfigurasi Caddy | `~/.config/caddy/Caddyfile`, token di `~/.config/caddy/caddy.env` |
 | Kunci akses | `~/math-speedy/access-key-math.txt` |
-| AI | 9router lokal `http://127.0.0.1:20128/v1`, model `VPS-Combo-gue`, **WAJIB `stream:false`** |
+| AI | 9router lokal `http://127.0.0.1:20128/v1`, model `VPS-Combo-gue`, **WAJIB `stream:false`**. Combo ini merotasi model (terlihat `gemini-3.1-flash-lite`/`3.5-flash-lite`) dan **mendukung gambar** lewat format vision OpenAI (`content:[{type:'image_url'}]`) |
 | Log | `journalctl --user -u mathspeedy.service` (app) atau `-u caddy.service` (TLS) |
-| Endpoint AI | `/api/challenge` (soal), `/api/explanation` (Asisten Belajar + visual), `/api/iq-test` (Tes penalaran adaptif) |
+| Endpoint AI | `/api/challenge` (soal, opsi `story:true` untuk versi cerita), `/api/chat` (kolom chat, menerima `image` data URL untuk foto soal), `/api/explanation` (Asisten Belajar + visual), `/api/iq-test` (Tes penalaran adaptif), `/api/guide` (materi panduan) |
 | Versi | **satu versi saja**: kode di `main`, deploy ke VPS, mirror GitHub Pages sudah dimatikan |
 
 Arsitektur: pengunjung -> Caddy `:8788` (TLS) -> app `127.0.0.1:8791`.
@@ -74,6 +74,13 @@ commit, atau tempat lain.
 - **`max_tokens` endpoint AI jangan diturunkan.** `VPS-Combo-gue` bisa memakai
   ~440 token untuk penalaran internal, jadi jatah 350 membuat isi balasan kosong
   (`Unexpected end of JSON input`). `/api/iq-test` memakai 900.
+- **Timeout AI jangan diturunkan dari 30 detik** (`AI_TIMEOUT` di `server.js`).
+  Latensi model lewat tunnel terukur ~18-19 detik walau untuk jawaban mini;
+  timeout 15 detik membuat semua permintaan AI selalu kehabisan waktu dan
+  diam-diam jatuh ke soal bawaan. Permintaan bergambar (`/api/chat` + foto)
+  memakai 60 detik karena token gambarnya jauh lebih besar.
+- `/api/chat` membaca badan permintaan sampai 1,6 MB agar data URL foto muat;
+  endpoint lain tetap dibatasi 8 KB. Batas ini ada di `readJSON(req, max)`.
 - Kegagalan model **tidak** boleh menghentikan sesi: `/api/iq-test` mengirim soal
   bawaan (`fallback:true`) dan UI memberi tahu pengguna. Pola yang sama dipakai
   `/api/challenge`.

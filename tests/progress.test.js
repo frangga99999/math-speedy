@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readProgress, saveSession, summarizeProgress} from '../progress.js';
+import {readProgress, saveSession, summarizeProgress, sessionTrend} from '../progress.js';
 const session = (id, day, overrides={}) => ({id,at:new Date(2026,8,day,10).toISOString(),operation:'kali',difficulty:'mudah',answered:10,score:8,reason:'completed',...overrides});
 const memory = () => { let value=null; return {getItem:()=>value,setItem:(_,next)=>{value=next;}}; };
 test('progress survives reload and does not duplicate session saves',()=>{const storage=memory();assert.equal(saveSession(storage,session('a',20)),true);saveSession(storage,session('a',20));assert.equal(readProgress(storage).length,1);});
 test('partial sessions count answered questions, never completed sessions',()=>{const s=summarizeProgress([session('a',20),session('b',21,{answered:3,score:1,reason:'quit'})],new Date(2026,8,21,12));assert.equal(s.answered,13);assert.equal(s.score,9);assert.equal(s.accuracy,69);assert.equal(s.completed,1);assert.equal(s.today,3);assert.equal(s.streak,2);assert.equal(s.days[6].answered,3);});
 test('streak includes yesterday before first practice today and breaks on gaps',()=>{assert.equal(summarizeProgress([session('a',19),session('b',20)],new Date(2026,8,21,12)).streak,2);assert.equal(summarizeProgress([session('a',19)],new Date(2026,8,21,12)).streak,0);});
 test('corrupt and unavailable storage stays safe with no fabricated data',()=>{const storage=memory();storage.setItem('',JSON.stringify([session('a',20,{operation:'<script>'}),session('b',20,{score:99})]));assert.deepEqual(readProgress(storage),[]);assert.equal(saveSession({getItem(){throw Error();},setItem(){throw Error();}},session('a',20)),false);assert.equal(summarizeProgress([]).accuracy,null);});
+test('kurva belajar menghitung akurasi kumulatif terurut waktu',()=>{const trend=sessionTrend([session('b',21,{answered:10,score:6}),session('a',20,{answered:10,score:8})],new Date(2026,8,22,12));assert.equal(trend.length,2);assert.equal(trend[0].accuracy,80);assert.equal(trend[1].accuracy,70);assert.equal(trend[1].operation,'kali');});
