@@ -286,6 +286,40 @@ function shuffle(arr, random) {
   return a;
 }
 
+// Soal penalaran numerik pilihan ganda (Advanced Assessment): persentase, rasio,
+// persen-dari. Deterministis & offline — jawaban + pengecoh diturunkan dari angka
+// yang sama. `answer` adalah indeks pilihan yang benar; `options` teks pilihan.
+export function generateNumerical({difficulty='sedang', history=[], previous=''}, random=Math.random) {
+  const [lo, hi] = {mudah:[2,6], sedang:[6,18], sulit:[20,60]}[difficulty];
+  const pool = [];
+  const mc = (id, display, prompt, correct, distractors, hint) => {
+    const opts = [...new Set([correct, ...distractors].filter(n => Number.isFinite(n) && n >= 0))];
+    if (opts.length < 4) return null;
+    const options = shuffle(opts, random);
+    return {id, operation:'iq', type:'numerical', display, prompt, options: options.map(String), answer: options.indexOf(correct), hint, source:'default'};
+  };
+  for (let a = lo; a <= hi; a++) {
+    for (const pct of [10, 20, 25, 50]) {
+      const delta = Math.round(a * pct / 100);
+      const rise = mc(`pc:${a}:${pct}`, `Harga sebuah barang naik dari Rp${a}.000 menjadi Rp${a + delta}.000.`, 'Kenaikannya berapa persen?', pct, [pct + 5, Math.max(1, pct - 5), pct + 10, pct + 15], `Kenaikan Rp${delta}.000 dibagi harga awal Rp${a}.000, lalu dikali 100.`);
+      if (rise) pool.push(rise);
+      const part = a * pct / 100;
+      if (Number.isInteger(part)) {
+        const val = part * 1000;
+        const pof = mc(`pof:${a}:${pct}`, `Hitung ${pct}% dari ${a}.000.`, 'Hasilnya berapa?', val, [val + 1000, Math.max(0, val - 1000), val + 2000, (part + a) * 1000], `${pct}% sama dengan ${pct}/100, lalu kalikan ${a}.000.`);
+        if (pof) pool.push(pof);
+      }
+    }
+    for (const b of [2, 3, 4]) {
+      const r = mc(`ratio:${a}:${b}`, `Rasio tepung dan gula dalam resep adalah 1 : ${b}. Jika tepung yang dipakai ${a} kg, berapa kg gula yang dibutuhkan?`, 'Berapa kg gula?', a * b, [a * b + 1, Math.max(1, a * b - 1), a * (b + 1), a + b], `Karena rasionya 1 : ${b}, kalikan ${a} dengan ${b}.`);
+      if (r) pool.push(r);
+    }
+  }
+  const available = pool.filter(q => !history.includes(q.id) && q.id !== previous);
+  if (!available.length) throw new Error('Mulai sesi baru untuk soal berikutnya.');
+  return available[Math.floor(random() * available.length)];
+}
+
 // Bungkus soal aritmetika biasa menjadi soal cerita: angka tetap, bingkainya berganti.
 export function frameStory({a,b,operation},random=Math.random) {
   const pick=(list)=>list[Math.floor(random()*list.length)];

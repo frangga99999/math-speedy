@@ -1,12 +1,12 @@
-import { generateChallenge, generateIQ, generateTableChallenge, GUIDE_TOPICS, METHODS, CHAT_STARTERS, frameStory, referenceRows, calculate, hintFor } from './engine.js';
-import { readProgress, saveSession, summarizeProgress, sessionTrend } from './progress.js';
+import { generateChallenge, generateIQ, generateNumerical, generateTableChallenge, GUIDE_TOPICS, METHODS, CHAT_STARTERS, frameStory, referenceRows, calculate, hintFor } from './engine.js';
+import { readProgress, saveSession, summarizeProgress, sessionTrend, assessmentReadiness } from './progress.js';
 import {findWeakSkill,readAttempts,saveAttempt,readSkillProgress} from './mastery.js';
 import {SKILL_DEFINITIONS} from './skills.js';
 
 const app = document.querySelector('#app');
 const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
 const TOTAL = 10;
-const sessionTotal = () => state.targetSkill ? 5 : TOTAL;
+const sessionTotal = () => state.assessment === 'diagnostic' ? state.diagQueue.length : state.targetSkill ? 5 : TOTAL;
 const TIME_BY_DIFFICULTY = { mudah: 120, sedang: 80, sulit: 60 };
 const sessionSeconds = () => state.timeMode === 'custom' ? state.customSeconds : (TIME_BY_DIFFICULTY[state.difficulty] ?? 80);
 const clockLabel = s => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
@@ -36,7 +36,8 @@ let sessionClock;
 let clockTick = 0;
 let stageObserver;
 let simTimer;
-state.iqTopic='mixed'; state.iqTest=false; state.tableOp='tambah'; state.tableGroup=0;
+state.iqTopic='mixed'; state.iqTest=false; state.tableOp='tambah'; state.tableGroup=0; state.assessment=null; state.mcMode=false; state.selected=null;
+state.diagQueue=[]; state.diagStats=null; state.diagCurrent=null; state.mcRendered=null;
 state.tableMode=null; state.tableNumber=null; state.tableLabel=''; state.tableLo=1; state.tableHi=10;
 state.guideTopic=null; state.guideMaterial=null; state.messages=null; state.chatBusy=false; state.chatImage=null; state.simFrame=0; state.simPlaying=false;
 state.timeMode='preset'; state.customSeconds=90;
@@ -170,6 +171,7 @@ function renderHome() {
       <div class="home-extras">
         <button class="ai-feature" id="show-tables"><span class="ai-feature-icon">${svg('grid', 22)}</span><span><strong>Tabel Perhitungan</strong><small>Hafal tabel tambah, kurang, kali, bagi, akar, kuadrat & kubik · 1 sampai 30</small></span>${svg('arrow', 20)}</button>
         <button class="ai-feature" id="ai-practice"><span class="ai-feature-icon">${svg('spark', 25)}</span><span><strong>Asisten Belajar</strong><small>${aiConnected ? 'Siap membuat soal & visual' : aiConfigured ? 'Model pribadi siap diuji' : 'Penjelasan visual per soal'}</small></span>${svg('arrow', 20)}</button>
+        <button class="ai-feature" id="show-assessment"><span class="ai-feature-icon">${svg('chart', 22)}</span><span><strong>Advanced Assessment</strong><small>Latihan penalaran numerik, deduktif, induktif & verbal ala tes rekrutmen</small></span>${svg('arrow', 20)}</button>
         <section class="recent-section" aria-labelledby="recent-title"><div class="section-heading"><h2 id="recent-title">Latihan terakhir</h2><span>Di perangkat ini</span></div>${progress.recent.length ? `<div class="recent-list">${progress.recent.map(session => `<button class="recent-item" data-practice="${session.operation}" data-level="${session.difficulty}" aria-label="Ulangi ${operations[session.operation].label}, ${levels[session.difficulty].label}"><span class="recent-symbol">${operations[session.operation].symbol}</span><span class="recent-name"><strong>${operations[session.operation].label}</strong><small>${levels[session.difficulty].label} · ${new Intl.DateTimeFormat('id-ID', {day:'numeric', month:'short'}).format(new Date(session.at))} · ${session.reason === 'completed' ? 'Tuntas' : 'Belum tuntas'}</small></span><span class="recent-score">${session.score}<small>/${session.answered}</small></span>${svg('refresh', 16)}</button>`).join('')}</div>` : `<div class="history-empty">${svg('grid', 25)}<div><strong>Belum ada latihan</strong><p>Hasil latihanmu akan muncul di sini.</p></div></div>`}</section>
         <footer class="dashboard-footer"><span class="footer-dot"></span> Progres tersimpan otomatis di perangkat ini</footer>
       </div>
@@ -222,6 +224,19 @@ function navigate(tab) {
 }
 
 const IQ_TOPICS={mixed:'Campuran',basic:'Tambah & kurang',multiply:'Pola perkalian',growing:'Selisih bertingkat',alternate:'Pola bergantian',square:'Pola kuadrat',fibonacci:'Jumlah berantai',double:'Dobel + satu',mixedops:'Operasi bergantian',analogy:'Analogi angka',oddone:'Ganjil satu keluar',matrix:'Matriks angka',logic:'Logika & rasio'};
+// Kategori Advanced Assessment (SHL-style prep). Kategori yang siap memakai mesin
+// penalaran lokal generateIQ; sisanya ditandai "Segera" hingga generatornya dibuat.
+const ASSESSMENT_CATEGORIES=[
+  {id:'general',label:'General Ability',symbol:'◉',ready:true,iqTopic:'mixed'},
+  {id:'numerical',label:'Numerical Reasoning',symbol:'∑',ready:true,iqTopic:'logic',mc:true},
+  {id:'deductive',label:'Deductive Reasoning',symbol:'→',ready:true,iqTopic:'logic'},
+  {id:'inductive',label:'Inductive Reasoning',symbol:'⌁',ready:true,iqTopic:'matrix'},
+  {id:'verbal',label:'Verbal Reasoning',symbol:'Aa',ready:false},
+  {id:'checking',label:'Checking',symbol:'✓',ready:false},
+  {id:'calculation',label:'Calculation',symbol:'±',ready:false},
+  {id:'sjt',label:'Situational Judgement',symbol:'⚖',ready:false},
+];
+const assessmentLabel=id=>id==='diagnostic'?'Diagnosis':ASSESSMENT_CATEGORIES.find(c=>c.id===id)?.label;
 function showIQMenu(){
   document.querySelectorAll('dialog[open]').forEach(d=>d.close());
   openDialog(`<button class="dialog-close" data-close aria-label="Tutup pilihan IQ">${svg('close')}</button><span class="eyebrow">PENALARAN NUMERIK</span><h2>Pilih latihan</h2><button class="iq-test-feature" id="start-iq-test"><span>${svg('spark',24)}</span><strong>Tes penalaran<small>10 soal adaptif · dibuat Asisten Belajar</small></strong>${svg('arrow',18)}</button><div class="topic-grid">${Object.entries(IQ_TOPICS).map(([id,label],i)=>`<button data-iq-topic="${id}"><span>${['⋯','±','×','↗','⇄','²','∞','2×','±×','↔','≠','▦','⚖'][i]}</span>${label}</button>`).join('')}</div>`);
@@ -248,7 +263,7 @@ function digitOptionsMarkup() {
 function showSetup(operation = state.operation) {
   document.querySelectorAll('dialog[open]').forEach(d=>d.close());
   state.targetSkill=null;state.targetTitle='';
-  state.tableMode=null;
+  state.tableMode=null; state.assessment=null; state.mcMode=false;
   state.operation = operation;
   const dialog = openDialog(`<button class="dialog-close" data-close aria-label="Tutup pengaturan">${svg('close')}</button><span class="eyebrow">10 SOAL · <span id="setup-time">${sessionSeconds()}</span> DETIK · 5 NYAWA</span><h2>${operation==='iq'?IQ_TOPICS[state.iqTopic]:operations[operation].label}</h2>
     <div class="difficulty-tabs" role="group" aria-label="Pilih tingkat kesulitan" style="--selected:${Object.keys(levels).indexOf(state.difficulty)}"><span class="difficulty-indicator" aria-hidden="true"></span>${Object.entries(levels).map(([key, level], i) => `<button class="difficulty" data-difficulty="${key}">${bars(i + 1)}${level.label}</button>`).join('')}</div>
@@ -362,7 +377,7 @@ function renderWrittenChallenge() {
   const isStory = state.storySession && BASIC_OPS.includes(state.operation);
   const contextLabel = isStory
     ? `${operations[state.operation].label} · Cerita`
-    : state.iqTest ? 'Tes penalaran' : IQ_TOPICS[state.iqTopic] || 'Latihan IQ';
+    : state.assessment ? assessmentLabel(state.assessment) : state.iqTest ? 'Tes penalaran' : IQ_TOPICS[state.iqTopic] || 'Latihan IQ';
   app.innerHTML = `
     <section class="written-challenge ${isStory ? 'written-story' : 'written-iq'}" aria-label="${isStory ? 'Latihan soal cerita' : 'Latihan pola angka'}">
       <header class="written-header">
@@ -378,6 +393,26 @@ function renderWrittenChallenge() {
           <h1 id="equation" aria-label="Soal">…</h1>
           <div class="question-decoration" aria-hidden="true"><i></i><i></i><i></i></div>
         </section>
+        ${answerCardHTML()}
+      </main>
+      <div class="sr-only" id="feedback" role="status" aria-live="polite"></div>
+      <div class="success-burst" aria-hidden="true"></div>
+    </section>`;
+  stageObserver?.disconnect();
+  attachAnswerCard();
+  state.mcRendered = state.mcMode;
+}
+
+// Kartu jawaban: pilihan ganda (numerik/penalaran) atau input angka biasa.
+// Diagnosis mencampur keduanya per soal, jadi kartu ini bisa diganti tanpa render ulang.
+function answerCardHTML() {
+  return state.mcMode ? `
+        <div class="written-answer-card mc-answer-card">
+          <label>Pilih jawabanmu</label>
+          <div class="mc-options" id="mc-options" role="radiogroup" aria-label="Pilihan jawaban"></div>
+          <div class="written-secondary-actions"><button type="button" id="written-help">${svg('spark', 16)} Petunjuk</button><button type="button" id="giveup">Menyerah</button></div>
+          <button type="button" class="written-submit" id="done"><span>Periksa jawaban</span>${svg('arrow', 20)}</button>
+        </div>` : `
         <form class="written-answer-card" id="written-answer-form">
           <label for="written-answer">Jawabanmu</label>
           <div class="written-input-row">
@@ -387,24 +422,33 @@ function renderWrittenChallenge() {
           <small id="written-answer-help">Kamu bisa mengetik jawaban panjang dengan keyboard.</small>
           <div class="written-secondary-actions"><button type="button" id="written-help">${svg('spark', 16)} Petunjuk</button><button type="button" id="giveup">Menyerah</button></div>
           <button type="submit" class="written-submit" id="done"><span>Periksa jawaban</span>${svg('arrow', 20)}</button>
-        </form>
-      </main>
-      <div class="sr-only" id="feedback" role="status" aria-live="polite"></div>
-      <div class="success-burst" aria-hidden="true"></div>
-    </section>`;
-  stageObserver?.disconnect();
+        </form>`;
+}
+
+function attachAnswerCard() {
   const input = app.querySelector('#written-answer');
-  input.addEventListener('input', () => {
+  if (input) input.addEventListener('input', () => {
     const clean = input.value.replace(/\D/g, '').slice(0, 12);
     if (input.value !== clean) input.value = clean;
     state.input = clean.replace(/^0+(?=\d)/, '');
     if (input.value !== state.input) input.value = state.input;
     updateKeypad();
   });
-  app.querySelector('#written-answer-form').addEventListener('submit', event => {
+  const answerForm = app.querySelector('#written-answer-form');
+  if (answerForm) answerForm.addEventListener('submit', event => {
     event.preventDefault();
     press('enter');
   });
+}
+
+function renderAnswerCard() {
+  const card = app.querySelector('.written-answer-card');
+  if (!card) return;
+  const wrap = document.createElement('template');
+  wrap.innerHTML = answerCardHTML();
+  card.replaceWith(wrap.content.firstElementChild);
+  attachAnswerCard();
+  state.mcRendered = state.mcMode;
 }
 
 function updateQuestion() {
@@ -423,6 +467,11 @@ function updateQuestion() {
   if (writtenStep) writtenStep.textContent = `Soal ${state.index + 1} dari ${sessionTotal()}`;
   updateAnswer();
   updateKeypad();
+  const mcOptions = app.querySelector('#mc-options');
+  if (mcOptions) {
+    mcOptions.innerHTML = q?.options ? q.options.map((o, i) => `<button type="button" class="mc-option" data-option="${i}" role="radio" aria-checked="false"><span class="mc-option-letter">${String.fromCharCode(65 + i)}</span><span>${escapeHtml(o)}</span></button>`).join('') : '';
+    state.selected = null;
+  }
   if (q) {
     animate(equation, [{opacity:0,transform:'translateY(5px)'},{opacity:1,transform:'translateY(0)'}]);
     if (app.querySelector('#written-answer') && !motionPreference.matches) setTimeout(() => app.querySelector('#written-answer')?.focus({preventScroll:true}), 220);
@@ -432,7 +481,7 @@ function updateQuestion() {
 function updateKeypad() {
   app.querySelectorAll('[data-key]').forEach(el => { el.disabled = state.loading || Boolean(state.feedback) || !state.question; });
   const done = app.querySelector('#done');
-  if (done) done.disabled = state.loading || Boolean(state.feedback) || !state.question || (Boolean(app.querySelector('#written-answer')) && !state.input);
+  if (done) done.disabled = state.loading || Boolean(state.feedback) || !state.question || (state.mcMode ? state.selected == null : (Boolean(app.querySelector('#written-answer')) && !state.input));
   const input = app.querySelector('#written-answer');
   if (input) input.disabled = state.loading || Boolean(state.feedback) || !state.question;
 }
@@ -474,7 +523,7 @@ function finishSession(reason = 'completed', destination = 'result') {
   state.reason = reason;
   if (state.answered) {
     let saved = false;
-    try { saved = saveSession(localStorage, {id: state.sessionId, at: new Date().toISOString(), operation: state.operation, difficulty: state.difficulty, answered: state.answered, score: state.score, reason, topic:state.storySession?`${state.operation}-cerita`:state.iqTopic}); } catch {}
+    try { saved = saveSession(localStorage, {id: state.sessionId, at: new Date().toISOString(), operation: state.operation, difficulty: state.difficulty, answered: state.answered, score: state.score, reason, topic:state.storySession?`${state.operation}-cerita`:state.iqTopic, assessment: state.assessment || undefined}); } catch {}
     if (!saved) showToast('Progres belum dapat disimpan di perangkat ini.');
   }
   clearInterval(sessionClock);
@@ -495,6 +544,20 @@ function press(key) {
   if (key === 'hapus') state.input = '';
   else if (key === 'backspace') state.input = state.input.slice(0,-1);
   else if (key === 'enter') {
+    if (state.mcMode) {
+      if (state.selected == null) {
+        animate(app.querySelector('#equation'), [0,-5,5,-3,0].map(x => ({transform:`translateX(${x}px)`})), {duration:250});
+        app.querySelector('#feedback').textContent = 'Pilih jawaban dahulu.';
+        return;
+      }
+      const correct = state.selected === state.question.answer;
+      state.feedback = correct ? 'correct' : 'wrong';
+      state.answered++;
+      if (correct) state.score++; else if (!state.targetSkill) state.lives--;
+      showFeedback(correct);
+      nextQuestionTimer = setTimeout(advanceQuestion, correct ? 900 : 1600);
+      return;
+    }
     if (!state.input) {
       animate(app.querySelector('#equation'), [0,-5,5,-3,0].map(x => ({transform:`translateX(${x}px)`})), {duration:250});
       app.querySelector('#feedback').textContent = 'Masukkan jawaban dahulu.';
@@ -538,12 +601,24 @@ function confirmExit(destination = 'result') {
 }
 
 function showFeedback(correct) {
+  if (state.assessment === 'diagnostic' && state.diagStats && state.diagCurrent) {
+    const s = state.diagStats[state.diagCurrent] || (state.diagStats[state.diagCurrent] = { right: 0, total: 0 });
+    s.total++;
+    if (correct) s.right++;
+  }
   correct ? sfx.correct() : sfx.wrong();
   app.querySelector('.figma-stage, .written-challenge')?.classList.add(correct ? 'is-correct' : 'is-wrong');
-  app.querySelector('#question-prompt').textContent = correct ? 'Jawaban benar!' : `Jawabannya ${calculate(state.question)}`;
-  app.querySelector('#feedback').textContent = correct ? 'Jawaban benar.' : `Jawaban salah. Jawaban yang benar ${calculate(state.question)}.`;
+  const correctText = state.mcMode ? state.question.options[state.question.answer] : String(calculate(state.question));
+  app.querySelector('#question-prompt').textContent = correct ? 'Jawaban benar!' : `Jawabannya ${correctText}`;
+  app.querySelector('#feedback').textContent = correct ? 'Jawaban benar.' : `Jawaban salah. Jawaban yang benar ${correctText}.`;
   const lives = app.querySelector('.figma-lives, .written-lives');
   lives.setAttribute('aria-label', `${state.lives} nyawa tersisa`);
+  if (state.mcMode) {
+    app.querySelectorAll('.mc-option').forEach((el, i) => {
+      el.classList.toggle('is-correct', i === state.question.answer);
+      if (i === state.selected && !correct) el.classList.add('is-wrong');
+    });
+  }
   if (!correct) {
     if(!state.targetSkill)lives.children[state.lives]?.classList.remove('alive');
     animate(app.querySelector('#answer, #written-answer'), [0,-6,6,-4,0].map(x => ({transform:`translateX(${x}px)`})), {duration:300});
@@ -589,7 +664,16 @@ async function loadQuestion() {
     try { const response=await fetch('/api/iq-test',{method:'POST',signal:requestController.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({difficulty:state.difficulty,history:state.history})}); if(response.status===401){location.reload();return;} const data=await response.json();if(!response.ok)throw new Error(data.error);question=data;if(question.fallback)showToast('AI belum merespons. Soal bawaan digunakan.'); }
     catch(error){if(currentRequest!==requestId||state.screen!=='challenge')return;state.loading=false;updateQuestion();showToast(error.message||'Asisten Belajar belum tersedia.');setTimeout(()=>finishSession('quit'),800);return;}
   }
-  else if (state.operation === 'iq') question = generateIQ({...settings,topic:state.iqTopic});
+  else if (state.operation === 'iq') {
+    if (state.assessment === 'diagnostic') {
+      const cat = state.diagQueue[state.index] ?? 'general';
+      state.diagCurrent = cat;
+      const meta = ASSESSMENT_CATEGORIES.find(c => c.id === cat);
+      state.mcMode = meta?.mc === true;
+      state.iqTopic = meta?.iqTopic || 'mixed';
+    }
+    question = state.mcMode ? generateNumerical({...settings}) : generateIQ({...settings,topic:state.iqTopic});
+  }
   else if (state.tableMode) question = generateTableChallenge({operation:state.tableMode, number:state.tableNumber, lo:state.tableLo, hi:state.tableHi, history:state.history, previous:state.previous});
   else if (state.engine === 'default' || state.operation === 'campuran' || state.operation === 'akar') question = generateChallenge(settings);
   else {
@@ -614,6 +698,7 @@ async function loadQuestion() {
   clockTick = performance.now();
   state.questionStartedAt = performance.now();
   state.hintUsed = false;
+  if (state.mcRendered !== state.mcMode) renderAnswerCard();
   updateQuestion();
   // Soal AI berikutnya diambil duluan selagi pengguna menjawab, supaya latensi
   // tunnel (~18-19 detik) tertutup oleh waktu berpikir dan menjawab pengguna.
@@ -630,11 +715,29 @@ function start() {
   // Sekitar sepertiga sesi operasi dasar tampil sebagai soal cerita: angka sama,
   // bingkainya berubah. Teks cerita butuh layar menulis, bukan keypad kaku.
   state.storySession = !state.tableMode && BASIC_OPS.includes(state.operation) && !state.targetSkill && !state.digits && Math.random() < 0.35;
-  Object.assign(state, {sessionId:crypto.randomUUID(),reason:null,screen:'challenge',index:0,score:0,answered:0,lives:5,input:'',feedback:'',previous:'',history:[],remaining:sessionSeconds(),questionStartedAt:0,hintUsed:false});
+  Object.assign(state, {sessionId:crypto.randomUUID(),reason:null,screen:'challenge',index:0,score:0,answered:0,lives:5,input:'',feedback:'',previous:'',history:[],remaining:sessionSeconds(),questionStartedAt:0,hintUsed:false,selected:null});
   renderChallenge();
   enterScreen();
   loadQuestion();
   startClock();
+}
+
+// Diagnosis: 8 soal mencampur empat kategori siap (general/numerical/deductive/
+// inductive) dalam urutan tetap. Tiap kategori memakai interaksi aslinya (pilihan
+// ganda untuk numerik, input angka untuk sisanya). Hasilnya profil per kategori.
+function startDiagnostic() {
+  state.assessment = 'diagnostic';
+  state.operation = 'iq';
+  state.iqTest = false;
+  state.engine = 'default';
+  state.difficulty = 'sedang';
+  state.tableMode = null;
+  state.mcMode = false;
+  state.selected = null;
+  state.diagQueue = ['general', 'numerical', 'deductive', 'inductive', 'general', 'numerical', 'deductive', 'inductive'];
+  state.diagStats = { general: { right: 0, total: 0 }, numerical: { right: 0, total: 0 }, deductive: { right: 0, total: 0 }, inductive: { right: 0, total: 0 } };
+  state.diagCurrent = null;
+  start();
 }
 
 function showToast(message) {
@@ -725,10 +828,15 @@ function renderResult() {
   const accuracy = state.answered ? Math.round(state.score / state.answered * 100) : 0;
   const completed = state.reason === 'completed';
   const defeated = state.reason === 'timeout' || state.reason === 'lives';
-  const title = completed ? (state.targetSkill ? (state.score>=4?'Nice, mulai kebaca.':'Masih agak goyang.') : state.score === sessionTotal() ? 'Sempurna!' : 'Tantangan selesai!') : state.reason === 'timeout' ? 'Waktu habis' : state.reason === 'lives' ? 'Coba lagi, yuk.' : 'Latihan diakhiri';
+  const title = state.assessment === 'diagnostic' ? (completed ? 'Diagnosis selesai' : 'Diagnosis terhenti') : completed ? (state.targetSkill ? (state.score>=4?'Nice, mulai kebaca.':'Masih agak goyang.') : state.score === sessionTotal() ? 'Sempurna!' : 'Tantangan selesai!') : state.reason === 'timeout' ? 'Waktu habis' : state.reason === 'lives' ? 'Coba lagi, yuk.' : 'Latihan diakhiri';
   const reasoningIndex=Math.round(accuracy*.8+Math.min(state.answered/sessionTotal(),1)*20);
   let learningInsight=null;
   if(state.operation==='tambah')try{learningInsight=findWeakSkill(readAttempts(localStorage),state.sessionId);}catch{}
+  const diagRows = state.assessment === 'diagnostic' && state.diagStats ? ['general', 'numerical', 'deductive', 'inductive'].map(cat => {
+    const s = state.diagStats[cat] || { right: 0, total: 0 };
+    const pct = s.total ? Math.round(s.right / s.total * 100) : 0;
+    return `<div class="result-diag-row"><span>${assessmentLabel(cat)}</span><b>${s.right}/${s.total}</b><i style="--pct:${pct}%"></i></div>`;
+  }).join('') : '';
   app.innerHTML = `
     <section class="result-screen ${completed ? 'result-completed' : ''}${defeated ? ' result-defeated' : ''}">
       ${appHeader()}
@@ -739,9 +847,10 @@ function renderResult() {
         <p>${completed ? 'Satu latihan lagi. Satu langkah maju.' : 'Progresmu tetap berarti. Lanjutkan lagi kapan saja.'}</p>
         <div class="result-card"><span>${state.iqTest?'INDEKS PENALARAN':'JAWABAN BENAR'}</span><strong><b id="result-score">${state.iqTest?reasoningIndex:state.score}</b><small>${state.iqTest?' / 100':` / ${state.answered}`}</small></strong><div class="result-stats"><span><b>${accuracy}%</b> Akurasi</span><span><b>${state.answered}/${sessionTotal()}</b> Soal dikerjakan</span></div></div>
         ${state.iqTest?'<p class="iq-result-note">Skor latihan, bukan skor IQ klinis. Tes resmi memerlukan norma populasi dan pengawasan terstandar.</p>':''}
+        ${diagRows ? `<div class="result-diag"><span>PROFIL PER KATEGORI</span>${diagRows}</div>` : ''}
         ${learningInsight&&!state.targetSkill?`<div class="result-insight"><span>YANG MASIH PERLU DIASAH</span><strong>${escapeHtml(learningInsight.title)}</strong><p>${learningInsight.errors} jawaban yang meleset punya pola yang sama.</p><button id="target-practice" data-skill="${learningInsight.skillId}" data-title="${escapeHtml(learningInsight.title)}">Latih 5 soal ${svg('arrow',16)}</button></div>`:''}
-        <span class="result-session">${operations[state.operation].label} · ${state.tableMode ? state.tableLabel : levels[state.difficulty].label}${state.storySession?' · Cerita':''}${state.targetSkill?' · Fokus':''}</span>
-        <button class="primary-button" id="again"><span>${state.targetSkill?'Ulang fokus':'Latihan lagi'}</span><span class="button-arrow">${svg('refresh', 20)}</span></button>
+        <span class="result-session">${state.assessment ? assessmentLabel(state.assessment) : operations[state.operation].label} · ${state.tableMode ? state.tableLabel : levels[state.difficulty].label}${state.storySession?' · Cerita':''}${state.targetSkill?' · Fokus':''}</span>
+        <button class="primary-button" id="again"><span>${state.assessment==='diagnostic'?'Ulang diagnosis':state.targetSkill?'Ulang fokus':'Latihan lagi'}</span><span class="button-arrow">${svg('refresh', 20)}</span></button>
         <button class="text-button" id="home">${svg('back', 16)} Kembali ke beranda</button>
       </div><div class="completion-confetti" aria-hidden="true"></div>
     </section>`;
@@ -938,6 +1047,66 @@ async function openGuideTopic(id) {
   enterScreen();
 }
 
+function showAssessment() {
+  document.querySelectorAll('dialog[open]').forEach(d => d.close());
+  clearTimeout(nextQuestionTimer);
+  clearInterval(sessionClock);
+  stopSim();
+  stageObserver?.disconnect();
+  requestController?.abort();
+  requestId++;
+  state.screen = 'assessment';
+  state.assessment = null;
+  state.mcMode = false;
+  state.selected = null;
+  renderAssessmentHome();
+  enterScreen();
+}
+
+// Beranda Advanced Assessment: kesiapan, kategori latihan, dan sesi terakhir.
+// Memakai kelas yang sama dengan beranda & panduan — tanpa desain baru.
+function renderAssessmentHome() {
+  const progress = progressSummary();
+  const readiness = (() => { try { return assessmentReadiness(readProgress(localStorage)); } catch { return { ready: null, trend: null, answered: 0 }; } })();
+  const trendIcon = readiness.trend === 'up' ? '↗' : readiness.trend === 'down' ? '↘' : readiness.trend === 'flat' ? '→' : '';
+  const trendLabel = readiness.trend === 'up' ? 'Membaik' : readiness.trend === 'down' ? 'Menurun' : readiness.trend === 'flat' ? 'Stabil' : '';
+  const readinessText = readiness.ready === null
+    ? `<div><strong>Belum ada data</strong><p>Selesaikan latihan untuk melihat kesiapanmu.</p></div><span class="assessment-readiness-value">—</span>`
+    : `<div><strong>${trendLabel || 'Kesiapanmu'}${trendIcon ? ` <span class="assessment-trend">${trendIcon}</span>` : ''}</strong><p>Akurasi dari ${readiness.answered} soal latihan penalaran.</p></div><span class="assessment-readiness-value">${readiness.ready}%</span>`;
+  app.innerHTML = `
+    <section class="guide-screen assessment-screen" aria-label="Advanced Assessment">
+      ${appHeader()}
+      <div class="guide-content assessment-home">
+        <span class="eyebrow">ADVANCED ASSESSMENT</span>
+        <h1>Uji kemampuanmu.</h1>
+        <p>Latihan penalaran numerik, deduktif, induktif, dan verbal ala tes rekrutmen.</p>
+
+        <section class="assessment-readiness" aria-label="Kesiapan">
+          <span class="guide-group-label">KESIAPANMU</span>
+          <div class="assessment-readiness-card">${readinessText}</div>
+          <button class="primary-button assessment-diagnostic" id="start-diagnostic"><span>Mulai diagnosis</span><span class="button-arrow">${svg('arrow', 20)}</span></button>
+        </section>
+
+        <section class="assessment-categories" aria-label="Kategori latihan">
+          <span class="guide-group-label">KATEGORI LATIHAN</span>
+          <div class="topic-grid">${ASSESSMENT_CATEGORIES.map(c => `
+            <button data-assessment="${c.id}" ${c.ready ? '' : 'disabled aria-disabled="true"'}><span>${c.symbol}</span>${c.label}${c.ready ? '' : '<small>Segera</small>'}</button>`).join('')}</div>
+        </section>
+
+        <section class="recent-section assessment-recent" aria-labelledby="assessment-recent-title">
+          <div class="section-heading"><h2 id="assessment-recent-title">Latihan terakhir</h2><span>Di perangkat ini</span></div>
+          ${progress.recent.length ? `<div class="recent-list">${progress.recent.map(s => `
+            <button class="recent-item" data-practice="${s.operation}" data-level="${s.difficulty}" aria-label="Ulangi ${operations[s.operation].label}, ${levels[s.difficulty].label}">
+              <span class="recent-symbol">${operations[s.operation].symbol}</span>
+              <span class="recent-name"><strong>${operations[s.operation].label}</strong><small>${levels[s.difficulty].label} · ${s.score}/${s.answered} · ${s.reason === 'completed' ? 'Tuntas' : 'Belum tuntas'}</small></span>
+              ${svg('refresh', 16)}
+            </button>`).join('')}</div>` : `<div class="history-empty">${svg('grid', 25)}<div><strong>Belum ada latihan</strong><p>Hasil latihanmu akan muncul di sini.</p></div></div>`}
+        </section>
+      </div>
+    </section>
+    ${bottomNav('home')}`;
+}
+
 function showGuide() {
   document.querySelectorAll('dialog[open]').forEach(d => d.close());
   clearTimeout(nextQuestionTimer);
@@ -1047,6 +1216,8 @@ document.addEventListener('click', event => {
   else if (button.id === 'account') showAccount();
   else if (button.id === 'show-guide') showGuide();
   else if (button.id === 'show-tables') showTableMenu();
+  else if (button.id === 'show-assessment') showAssessment();
+  else if (button.id === 'start-diagnostic') startDiagnostic();
   else if (button.id === 'show-reference') showGuide();
   else if (button.dataset.tableOp) showTable(button.dataset.tableOp);
   else if (button.id === 'table-challenge') {
@@ -1067,6 +1238,21 @@ document.addEventListener('click', event => {
   else if (button.id==='iq-back') showIQMenu();
   else if (button.id==='start-iq-test') {state.iqTest=true;state.operation='iq';state.difficulty='sedang';state.tableMode=null;start();}
   else if (button.dataset.iqTopic) {state.iqTest=false;state.iqTopic=button.dataset.iqTopic;showSetup('iq');}
+  else if (button.dataset.assessment) {
+    const cat = ASSESSMENT_CATEGORIES.find(c => c.id === button.dataset.assessment);
+    if (!cat) return;
+    if (!cat.ready) { showToast(`${cat.label} — segera hadir.`); return; }
+    state.assessment = cat.id;
+    state.operation = 'iq';
+    state.iqTopic = cat.iqTopic;
+    state.iqTest = false;
+    state.engine = 'default';
+    state.difficulty = 'sedang';
+    state.tableMode = null;
+    state.mcMode = cat.mc === true;
+    state.selected = null;
+    start();
+  }
   else if (button.dataset.guideTopic) openGuideTopic(button.dataset.guideTopic);
   else if (button.id==='guide-back') { stopSim();state.guideTopic=null;state.guideMaterial=null;renderGuide(); }
   else if (button.id==='guide-practice') { const topic=button.dataset.guidePractice; topic==='iq'?showIQMenu():showSetup(topic); }
@@ -1107,6 +1293,11 @@ document.addEventListener('click', event => {
     updateKeypad();
     app.querySelector('#written-answer')?.focus();
   }
+  else if (button.classList.contains('mc-option')) {
+    state.selected = Number(button.dataset.option);
+    app.querySelectorAll('.mc-option').forEach((el, i) => { el.classList.toggle('is-selected', i === state.selected); el.setAttribute('aria-checked', String(i === state.selected)); });
+    updateKeypad();
+  }
   else if (button.id === 'done') press('enter');
   else if (button.dataset.difficulty) {
     state.difficulty = button.dataset.difficulty;
@@ -1117,7 +1308,7 @@ document.addEventListener('click', event => {
   else if (button.dataset.timePreset) { state.customSeconds = Number(button.dataset.timePreset); updateHomeSelection(); }
   else if (button.dataset.key) press(button.dataset.key);
   else if (button.id === 'start') {state.targetSkill=null;state.targetTitle='';start();}
-  else if (button.id === 'again') start();
+  else if (button.id === 'again') state.assessment === 'diagnostic' ? startDiagnostic() : start();
 });
 
 app.addEventListener('pointerdown', event => {

@@ -385,3 +385,38 @@
 .result-flash { position:absolute; inset:0; z-index:6; pointer-events:none; background:radial-gradient(ellipse at 50% 42%, transparent 42%, rgba(239,88,88,.38)); animation:flash-fade 1.15s ease-out forwards; }
 @keyframes flash-fade { from { opacity:1; } to { opacity:0; } }
 .result-screen.result-defeated .result-medallion { background:linear-gradient(135deg,#e9caca,#a97c7c); color:#4a2626; box-shadow:0 5px 0 #7d5656,0 14px 45px #ef585822; }
+
+/* Advanced Assessment — pakai bahasa visual beranda/panduan yang sudah ada. */
+.assessment-home .assessment-readiness { margin: 4px 0 24px; }
+.assessment-readiness-card { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:18px; border:1px solid #c1e6ed26; border-radius:20px; background:linear-gradient(135deg,#a9d3df12,#0e2c3a14); }
+.assessment-readiness-card strong { display:block; font-size:13px; }
+.assessment-readiness-card p { font-size:10px; margin:4px 0 0; color:#b7c9d5; line-height:1.6; }
+.assessment-readiness-value { font:600 26px/1 'Plus Jakarta Sans'; color:#d0f6e4; }
+.assessment-trend { font-size:10px; letter-spacing:.3px; color:#8fc8cf; }
+.assessment-categories { margin-bottom:26px; }
+.assessment-categories .topic-grid button { text-align:center; }
+.assessment-categories .topic-grid button:disabled { opacity:.5; filter:saturate(.5); cursor:not-allowed; }
+.assessment-categories .topic-grid button small { display:inline-block; font-size:9px; color:#ffd9a8; letter-spacing:.4px; }
+
+/* Pilihan ganda (Numerical/penalaran) — kartu jawaban pilihan. */
+.mc-options { display:grid; gap:10px; }
+.mc-option { display:flex; align-items:center; gap:12px; width:100%; padding:14px 16px; border:1px solid #a8ccd64a; border-radius:16px; background:#1e3445; color:#c5d7df; font:600 15px/1.35 'Plus Jakarta Sans',sans-serif; text-align:left; cursor:pointer; transition:transform .12s ease, background .12s ease, border-color .12s ease; }
+.mc-option:active { transform:scale(.985); }
+.mc-option-letter { display:grid; place-items:center; width:28px; height:28px; flex:none; border-radius:50%; border:1px solid #a8ccd64a; color:#8fc8cf; font-size:12px; }
+.mc-option.is-selected { border-color:#63e6a6; background:rgba(99,230,166,.14); color:#eafff3; }
+.mc-option.is-selected .mc-option-letter { background:#63e6a6; border-color:#63e6a6; color:#08221a; }
+.mc-option.is-correct { border-color:#63e6a6; background:rgba(99,230,166,.2); color:#d5fbe5; }
+.mc-option.is-correct .mc-option-letter { background:#63e6a6; border-color:#63e6a6; color:#08221a; }
+.mc-option.is-wrong { border-color:#ef7d7d; background:rgba(239,88,88,.14); color:#ffd9d9; }
+.mc-option.is-wrong .mc-option-letter { background:#ef5858; border-color:#ef5858; color:#fff; }
+
+/* Diagnosis: tombol mulai + profil per kategori di layar hasil. */
+.assessment-readiness .assessment-diagnostic { margin-top:14px; }
+.result-diag { margin:18px 0 20px; padding:14px 16px; border:1px solid #c8e6ec2a; border-radius:18px; background:linear-gradient(135deg,#bfdde510,#102d411a); }
+.result-diag>span { display:block; color:#a9c5b5; font-size:8px; letter-spacing:1.4px; margin-bottom:11px; }
+.result-diag-row { display:grid; grid-template-columns:1fr auto; gap:8px 14px; align-items:center; padding:8px 0; border-bottom:1px solid #c8e6ec1c; }
+.result-diag-row:last-child { border-bottom:0; }
+.result-diag-row span { color:#c9d9df; font-size:12px; }
+.result-diag-row b { color:#d5fbe5; font-size:12px; font-variant-numeric:tabular-nums; }
+.result-diag-row i { grid-column:1/-1; height:5px; border-radius:3px; background:#ffffff12; overflow:hidden; }
+.result-diag-row i::after { content:''; display:block; height:100%; width:var(--pct); background:#63e6a6; border-radius:3px; }

@@ -68,3 +68,23 @@ export function sessionTrend(sessions, now = new Date()) {
     return { at: s.at, operation: s.operation, accuracy: Math.round(score / answered * 100), answered };
   });
 }
+
+// Kesiapan Advanced Assessment: akurasi gabungan sesi yang ber-tag assessment,
+// plus arah tren (separuh terakhir vs separuh awal).
+export function assessmentReadiness(sessions, now = new Date()) {
+  const valid = sessions.filter(validSession).filter(s => new Date(s.at) <= now)
+    .filter(s => s.assessment).sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+  if (!valid.length) return { ready: null, trend: null, answered: 0 };
+  const acc = list => {
+    const sc = list.reduce((n, s) => n + s.score, 0);
+    const an = list.reduce((n, s) => n + s.answered, 0);
+    return an ? Math.round(sc / an * 100) : null;
+  };
+  const answered = valid.reduce((n, s) => n + s.answered, 0);
+  const ready = acc(valid);
+  const mid = Math.floor(valid.length / 2);
+  const older = acc(valid.slice(0, mid));
+  const newer = acc(valid.slice(mid));
+  const trend = valid.length < 2 ? null : newer > older + 3 ? 'up' : newer < older - 3 ? 'down' : 'flat';
+  return { ready, trend, answered };
+}
