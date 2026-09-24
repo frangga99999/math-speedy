@@ -119,7 +119,13 @@ function localExplanation(q) {
       'plus-kali':[`Kali lebih dulu walau ada di belakang: ${b} × ${c} = ${b*c}.`,`Lalu tambah: ${a} + ${b*c} = ${answer}.`],
       'minus-kali':[`Kali lebih dulu walau ada di belakang: ${b} × ${c} = ${b*c}.`,`Lalu kurang: ${a} − ${b*c} = ${answer}.`],
       'kurung-kali':[`Kerjakan isi kurung dulu: ${a} + ${b} = ${a+b}.`,`Lalu kalikan: ${a+b} × ${c} = ${answer}.`],
-      'kurung-kurang':[`Kerjakan isi kurung dulu: ${a} − ${b} = ${a-b}.`,`Lalu kalikan: ${a-b} × ${c} = ${answer}.`]
+      'kurung-kurang':[`Kerjakan isi kurung dulu: ${a} − ${b} = ${a-b}.`,`Lalu kalikan: ${a-b} × ${c} = ${answer}.`],
+      'kali-bagi':[`Kerjakan dari kiri: ${a} × ${b} = ${a*b}.`,`Lalu bagi: ${a*b} ÷ ${c} = ${answer}.`],
+      'bagi-plus':[`Bagi dulu: ${a} ÷ ${b} = ${a/b}.`,`Lalu tambah: ${a/b} + ${c} = ${answer}.`],
+      'bagi-minus':[`Bagi dulu: ${a} ÷ ${b} = ${a/b}.`,`Lalu kurang: ${a/b} − ${c} = ${answer}.`],
+      'plus-bagi':[`Bagi lebih dulu walau di belakang: ${b} ÷ ${c} = ${b/c}.`,`Lalu tambah: ${a} + ${b/c} = ${answer}.`],
+      'minus-bagi':[`Bagi lebih dulu walau di belakang: ${b} ÷ ${c} = ${b/c}.`,`Lalu kurang: ${a} − ${b/c} = ${answer}.`],
+      'kurung-bagi':[`Kerjakan isi kurung dulu: ${a} + ${b} = ${a+b}.`,`Lalu bagi: ${a+b} ÷ ${c} = ${answer}.`]
     }[variant] || [`Tandai bagian perkalian atau kurung lebih dulu.`,`Lalu kerjakan tambah dan kurang: hasilnya ${answer}.`];
     return {title:'Urutan operasi',summary:'Kurung dan kali lebih dulu, baru tambah dan kurang.',steps:langkah,insight:'KUKABATAKU: Kurung, Kali, Bagi, Tambah, Kurang.',visual:{type:'formula',values:[answer],labels:[q.display||'Soal',String(answer)]},source:'lokal'};
   }

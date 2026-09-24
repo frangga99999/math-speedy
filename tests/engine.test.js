@@ -94,7 +94,7 @@ test('operasi campuran: valid, urutan operasi benar, dan bervariasi', () => {
     for (let i=0;i<30;i++) {
       const q=generateChallenge({operation:'campuran',difficulty,history});
       assert.equal(q.operation,'campuran');
-      assert.ok(typeof q.display==='string'&&/[+\-×]/.test(q.display),q.display);
+      assert.ok(typeof q.display==='string'&&/[+\-−×÷]/.test(q.display),q.display);
       assert.ok(Number.isInteger(q.answer)&&q.answer>=0&&q.answer<=400,`jawaban ${q.answer} wajar`);
       assert.equal(calculate(q),q.answer,'display dan jawaban konsisten');
       assert.ok(!history.includes(q.id));

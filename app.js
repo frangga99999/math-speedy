@@ -31,6 +31,7 @@ const state = { screen: 'home', operation: 'kali', difficulty: 'mudah', question
 let requestId = 0;
 let requestController;
 let nextQuestionTimer;
+let aiPrefetch = null;
 let sessionClock;
 let clockTick = 0;
 let stageObserver;
@@ -409,7 +410,9 @@ function renderWrittenChallenge() {
 function updateQuestion() {
   const q = state.question;
   const equation = app.querySelector('#equation');
-  equation.textContent = q ? (q.operation === 'campuran' ? q.display : q.operation === 'iq' ? (q.display || `${q.sequence.join(' · ')} · ?`) : q.operation === 'akar' ? `√${q.a}` : (q.operation === 'kuadrat' || q.operation === 'kubik') ? `${q.a}${q.symbol}` : `${q.a} ${q.symbol} ${q.b}`) : '…';
+  const storyQ = state.storySession && Boolean(q?.story);
+  equation.hidden = storyQ;
+  equation.textContent = storyQ ? '' : q ? (q.operation === 'campuran' ? q.display : q.operation === 'iq' ? (q.display || `${q.sequence.join(' · ')} · ?`) : q.operation === 'akar' ? `√${q.a}` : (q.operation === 'kuadrat' || q.operation === 'kubik') ? `${q.a}${q.symbol}` : `${q.a} ${q.symbol} ${q.b}`) : '…';
   equation.classList.toggle('iq-equation', state.operation === 'iq');
   equation.classList.toggle('iq-multiline', state.operation === 'iq' && Boolean(q?.display?.includes('\n')));
   equation.setAttribute('aria-label', q ? q.operation === 'campuran' ? `Operasi campuran: ${q.display}` : q.operation === 'iq' ? (q.display ? q.display.replace(/\n/g, ', ') : `Lanjutkan pola: ${q.sequence.join(', ')}, tanda tanya`) : q.operation === 'akar' ? `Akar dari ${q.a}` : (q.operation === 'kuadrat' || q.operation === 'kubik') ? `${operations[q.operation].label} dari ${q.a}` : `${q.a} ${operations[q.operation].label} ${q.b}` : 'Menyiapkan soal');
@@ -565,6 +568,13 @@ function burst(container) {
   }
 }
 
+async function askAIQuestion(settings, signal) {
+  const response = await fetch('/api/challenge', {method:'POST', signal, headers:{'Content-Type':'application/json'}, body:JSON.stringify({...settings, engine:'ai', story:state.storySession===true})});
+  if (response.status === 401) { location.reload(); throw new Error('auth'); }
+  if (!response.ok) throw new Error('AI unavailable');
+  return response.json();
+}
+
 async function loadQuestion() {
   requestController?.abort();
   requestController = new AbortController();
@@ -583,11 +593,12 @@ async function loadQuestion() {
   else if (state.tableMode) question = generateTableChallenge({operation:state.tableMode, number:state.tableNumber, lo:state.tableLo, hi:state.tableHi, history:state.history, previous:state.previous});
   else if (state.engine === 'default' || state.operation === 'campuran' || state.operation === 'akar') question = generateChallenge(settings);
   else {
+    const historyKey = state.history.join('|');
+    const pending = aiPrefetch && aiPrefetch.historyKey === historyKey ? aiPrefetch.promise : null;
+    aiPrefetch = null;
     try {
-      const response = await fetch('/api/challenge', {method:'POST',signal:requestController.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({...settings,engine:'ai',story:state.storySession===true})});
-      if (response.status === 401) { location.reload(); return; }
-      if (!response.ok) throw new Error('AI unavailable');
-      question = await response.json();
+      question = pending ? await pending : await askAIQuestion(settings, requestController.signal);
+      if (!question) throw new Error('AI unavailable');
       if (question.fallback) showToast('AI belum merespons. Soal bawaan digunakan.');
     } catch {
       if (currentRequest !== requestId || state.screen !== 'challenge') return;
@@ -604,11 +615,18 @@ async function loadQuestion() {
   state.questionStartedAt = performance.now();
   state.hintUsed = false;
   updateQuestion();
+  // Soal AI berikutnya diambil duluan selagi pengguna menjawab, supaya latensi
+  // tunnel (~18-19 detik) tertutup oleh waktu berpikir dan menjawab pengguna.
+  if (state.engine === 'ai' && !state.tableMode && !['campuran','akar','iq'].includes(state.operation)) {
+    const nextSettings = {operation:state.operation, difficulty:state.difficulty, history:[...state.history], digits:state.operation === 'tambah' ? state.digits : null, skill:state.targetSkill};
+    aiPrefetch = { historyKey: state.history.join('|'), promise: askAIQuestion(nextSettings).catch(() => null) };
+  }
 }
 
 function start() {
   document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
   clearTimeout(nextQuestionTimer);
+  aiPrefetch = null;
   // Sekitar sepertiga sesi operasi dasar tampil sebagai soal cerita: angka sama,
   // bingkainya berubah. Teks cerita butuh layar menulis, bukan keypad kaku.
   state.storySession = !state.tableMode && BASIC_OPS.includes(state.operation) && !state.targetSkill && !state.digits && Math.random() < 0.35;

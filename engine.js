@@ -31,6 +31,12 @@ export function calculate({ a, b, c, operation, answer, variant }) {
       case 'minus-kali': return a - b * c;
       case 'kurung-kali': return (a + b) * c;
       case 'kurung-kurang': return (a - b) * c;
+      case 'kali-bagi': return a * b / c;
+      case 'bagi-plus': return a / b + c;
+      case 'bagi-minus': return a / b - c;
+      case 'plus-bagi': return a + b / c;
+      case 'minus-bagi': return a - b / c;
+      case 'kurung-bagi': return (a + b) / c;
       default: throw new Error('Bentuk campuran tidak valid.');
     }
   }
@@ -72,21 +78,36 @@ export function generateChallenge({ operation, difficulty, history = [], previou
   if (!isSettingsValid(operation, difficulty)) throw new Error('Pilihan latihan tidak valid.');
   if (skill && (!Object.hasOwn(SKILL_DEFINITIONS,skill) || SKILL_DEFINITIONS[skill].operation !== operation)) throw new Error('Skill latihan tidak valid.');
   if (operation === 'campuran') {
-    // Bentuk soal per level: mudah satu langkah, sedang masuk kali, sulit urutan operasi penuh.
+    // Bentuk soal per level: mudah satu langkah, sedang masuk kali & bagi,
+    // sulit urutan operasi penuh dengan tanda kurung dan pembagian.
     const resep = {
       mudah: {variants:['plus-minus','minus-plus'], bounds:{a:[1,9],b:[1,9],c:[1,9]}},
-      sedang: {variants:['plus-minus','minus-plus','kali-plus','kali-minus'], bounds:{a:[11,50],b:[11,50],c:[11,50]}},
-      sulit: {variants:['kali-plus','kali-minus','plus-kali','minus-kali','kurung-kali','kurung-kurang'], bounds:{a:[2,100],b:[2,12],c:[2,100]}}
+      sedang: {variants:['plus-minus','minus-plus','kali-plus','kali-minus','bagi-plus','bagi-minus'], bounds:{a:[11,50],b:[11,50],c:[11,50]}},
+      sulit: {variants:['kali-plus','kali-minus','plus-kali','minus-kali','kurung-kali','kurung-kurang','kali-bagi','plus-bagi','minus-bagi','kurung-bagi'], bounds:{a:[2,100],b:[2,12],c:[2,100]}}
     }[difficulty];
     const int=(lo,hi)=>lo+Math.floor(random()*(hi-lo+1));
+    // Soal pembagian dibangun dari pembagi × hasil supaya hasilnya selalu bulat.
+    const bagi=(divisor,limit)=>int(2,Math.max(2,Math.min(12,Math.floor(limit/divisor))));
+    const divBuilders={
+      'kali-bagi':()=>{const c=int(2,12),m=bagi(c,100);return{a:int(2,12),b:c*m,c};},
+      'bagi-plus':()=>{const b=int(2,12),q=bagi(b,100);return{a:b*q,b,c:int(2,100)};},
+      'bagi-minus':()=>{const b=int(2,12),q=bagi(b,100);return{a:b*q,b,c:int(2,q)};},
+      'plus-bagi':()=>{const c=int(2,12),q=bagi(c,100);return{a:int(2,100),b:c*q,c};},
+      'minus-bagi':()=>{const c=int(2,12),q=bagi(c,100);return{a:int(q,100),b:c*q,c};},
+      'kurung-bagi':()=>{const c=int(2,12),q=bagi(c,100);const a=int(2,c*q-2);return{a,b:c*q-a,c};}
+    };
     for (let attempt = 0; attempt < 500; attempt++) {
       const variant=resep.variants[Math.floor(random()*resep.variants.length)];
-      let [alo,ahi]=resep.bounds.a,[blo,bhi]=resep.bounds.b,[clo,chi]=resep.bounds.c;
-      if (variant==='kali-plus'||variant==='kali-minus') { alo=2;ahi=12; }
-      if (variant==='plus-kali'||variant==='minus-kali') { blo=2;bhi=12; }
-      if (variant==='kurung-kurang') { alo=3;ahi=20; blo=2;bhi=10; clo=2;chi=20; }
-      const a=int(alo,ahi),b=int(blo,bhi),c=int(clo,chi);
-      if (variant==='kurung-kurang' && a<=b) continue;
+      let a,b,c;
+      if (divBuilders[variant]) ({a,b,c}=divBuilders[variant]());
+      else {
+        let [alo,ahi]=resep.bounds.a,[blo,bhi]=resep.bounds.b,[clo,chi]=resep.bounds.c;
+        if (variant==='kali-plus'||variant==='kali-minus') { alo=2;ahi=12; }
+        if (variant==='plus-kali'||variant==='minus-kali') { blo=2;bhi=12; }
+        if (variant==='kurung-kurang') { alo=3;ahi=20; blo=2;bhi=10; clo=2;chi=20; }
+        a=int(alo,ahi);b=int(blo,bhi);c=int(clo,chi);
+        if (variant==='kurung-kurang' && a<=b) continue;
+      }
       const answer=calculate({a,b,c,operation:'campuran',variant});
       if (answer<0 || answer>400) continue;
       const id=`${a}:${b}:${c}`;
@@ -95,7 +116,9 @@ export function generateChallenge({ operation, difficulty, history = [], previou
         'plus-minus':`${a} + ${b} − ${c}`,'minus-plus':`${a} − ${b} + ${c}`,
         'kali-plus':`${a} × ${b} + ${c}`,'kali-minus':`${a} × ${b} − ${c}`,
         'plus-kali':`${a} + ${b} × ${c}`,'minus-kali':`${a} − ${b} × ${c}`,
-        'kurung-kali':`(${a} + ${b}) × ${c}`,'kurung-kurang':`(${a} − ${b}) × ${c}`
+        'kurung-kali':`(${a} + ${b}) × ${c}`,'kurung-kurang':`(${a} − ${b}) × ${c}`,
+        'kali-bagi':`${a} × ${b} ÷ ${c}`,'bagi-plus':`${a} ÷ ${b} + ${c}`,'bagi-minus':`${a} ÷ ${b} − ${c}`,
+        'plus-bagi':`${a} + ${b} ÷ ${c}`,'minus-bagi':`${a} − ${b} ÷ ${c}`,'kurung-bagi':`(${a} + ${b}) ÷ ${c}`
       }[variant];
       return {id,operation:'campuran',variant,a,b,c,answer,display,source:'default'};
     }
@@ -151,7 +174,12 @@ export function generateChallenge({ operation, difficulty, history = [], previou
 
 export function hintFor(q) {
   if (q.operation === 'iq') return q.hint;
-  if (q.operation === 'campuran') return 'Kerjakan perkalian dulu, lalu tambah atau kurang.';
+  if (q.operation === 'campuran') {
+    if (q.variant?.includes('kurung')) return 'Kerjakan isi tanda kurung lebih dulu, baru sisanya.';
+    if (q.variant?.includes('bagi')) return 'Bagi dikerjakan sebelum tambah atau kurang.';
+    if (q.variant?.includes('kali')) return 'Kerjakan perkalian dulu, lalu tambah atau kurang.';
+    return 'Kerjakan dari kiri ke kanan.';
+  }
   if (q.operation === 'akar') return `Cari angka yang jika dipangkat dua hasilnya ${q.a}.`;
   if (q.operation === 'kuadrat') return `Kalikan ${q.a} dengan dirinya sendiri.`;
   if (q.operation === 'kubik') return `Kalikan ${q.a} sebanyak tiga kali.`;
